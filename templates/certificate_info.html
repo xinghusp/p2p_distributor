@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .info-box {
+            background-color: #f8f9fa;
+            border-left: 4px solid #6c757d;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .warning-box {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .steps {
+            margin: 20px 0;
+        }
+        .steps li {
+            margin-bottom: 10px;
+        }
+        .browser-steps {
+            margin-top: 30px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        img {
+            max-width: 100%;
+            border: 1px solid #ddd;
+            margin: 10px 0;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #007BFF;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>关于安全连接的说明</h1>
+        
+        <div class="info-box">
+            <p>本系统使用HTTPS加密通信以确保WebRTC功能正常工作。由于我们使用了自签名证书，您的浏览器会显示安全警告，这是正常现象。</p>
+        </div>
+        
+        <div class="warning-box">
+            <p><strong>重要提示：</strong> 这个自签名证书仅用于本地局域网环境中的文件分发系统，不会危及您的电脑安全。</p>
+        </div>
+        
+        <h2>如何处理证书警告</h2>
+        
+        <p>首次访问系统时，您会看到类似下面的警告。请按照以下步骤继续访问：</p>
+        
+        <div class="browser-steps">
+            <h3>Chrome浏览器</h3>
+            <ol class="steps">
+                <li>在证书警告页面，点击"高级"</li>
+                <li>点击"继续前往[IP地址]（不安全）"</li>
+            </ol>
+            
+            <h3>Firefox浏览器</h3>
+            <ol class="steps">
+                <li>点击"高级..."按钮</li>
+                <li>点击"接受风险并继续"</li>
+            </ol>
+            
+            <h3>Edge浏览器</h3>
+            <ol class="steps">
+                <li>点击"高级"</li>
+                <li>点击"继续前往[网址]（不安全）"</li>
+            </ol>
+            
+            <h3>Safari浏览器</h3>
+            <ol class="steps">
+                <li>点击"显示详细信息"</li>
+                <li>点击"访问此网站"</li>
+            </ol>
+        </div>
+        
+        <h2>为什么需要HTTPS？</h2>
+        <p>WebRTC技术（我们的P2P传输所使用的技术）要求在安全上下文中运行，即需要HTTPS连接。这是为了保护用户隐私和安全。</p>
+        
+        <a href="/" class="back-link">返回首页</a>
+    </div>
+</body>
+</html>

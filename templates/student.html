@@ -1,0 +1,1393 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .section {
+            margin-bottom: 30px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .progress-container {
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .progress-bar {
+            height: 20px;
+            background-color: #4CAF50;
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .file-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .file-item {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .file-item:last-child {
+            border-bottom: none;
+        }
+        .file-progress {
+            width: 100%;
+            margin-top: 5px;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #007BFF;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        .alert {
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+        .alert-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .alert-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        .stat-item {
+            flex-basis: 48%;
+            padding: 10px;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007BFF;
+        }
+        .download-button {
+            background-color: #28a745;
+            margin-left: 10px;
+        }
+        .download-button:hover {
+            background-color: #218838;
+        }
+        .peer-connection {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .connection-status {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-connected {
+            background-color: #28a745;
+        }
+        .status-connecting {
+            background-color: #ffc107;
+        }
+        .status-disconnected {
+            background-color: #dc3545;
+        }
+        .debug-section {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+        .debug-toggle {
+            color: #6c757d;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        #debug-log {
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            padding: 10px;
+            margin-top: 10px;
+            border: 1px solid #ddd;
+            background-color: #fff;
+            display: none;
+        }
+        .log-entry {
+            margin-bottom: 2px;
+        }
+        .log-time {
+            color: #6c757d;
+        }
+        .log-info {
+            color: #0c5460;
+        }
+        .log-warning {
+            color: #856404;
+        }
+        .log-error {
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>学生端 - P2P文件接收</h1>
+
+        <div id="alerts"></div>
+
+        <div class="section">
+            <h2>加入分发任务</h2>
+            <div class="form-group">
+                <label for="distribution-id">分发任务ID:</label>
+                <input type="text" id="distribution-id" placeholder="输入教师分享的分发任务ID">
+            </div>
+            <button id="join-btn">加入任务</button>
+        </div>
+
+        <div id="download-section" class="section" style="display: none;">
+            <h2>文件下载</h2>
+            <div id="distribution-info">
+                <h3 id="distribution-name"></h3>
+                <p>创建时间: <span id="distribution-created-at"></span></p>
+            </div>
+
+            <h3>整体进度</h3>
+            <div class="progress-container">
+                <div class="progress-bar" id="overall-progress"></div>
+            </div>
+            <p><span id="overall-percent">0</span>% 完成</p>
+
+            <div class="stats">
+                <div class="stat-item">
+                    <div>连接的节点数</div>
+                    <div class="stat-value" id="connected-peers">0</div>
+                </div>
+                <div class="stat-item">
+                    <div>下载速度</div>
+                    <div class="stat-value" id="download-speed">0 KB/s</div>
+                </div>
+                <div class="stat-item">
+                    <div>上传速度</div>
+                    <div class="stat-value" id="upload-speed">0 KB/s</div>
+                </div>
+                <div class="stat-item">
+                    <div>剩余时间</div>
+                    <div class="stat-value" id="remaining-time">计算中...</div>
+                </div>
+            </div>
+
+            <h3>当前P2P连接</h3>
+            <div id="peer-connections"></div>
+
+            <h3>文件列表</h3>
+            <ul class="file-list" id="file-list"></ul>
+
+            <button id="download-all-btn">开始下载所有文件</button>
+            <button id="pause-btn" disabled>暂停下载</button>
+
+            <div class="debug-section">
+                <span class="debug-toggle" onclick="toggleDebugLog()">显示/隐藏调试日志</span>
+                <div id="debug-log"></div>
+            </div>
+        </div>
+
+        <a href="/" class="back-link">返回首页</a>
+    </div>
+
+    <script>
+        // 全局变量 - WebSocket和基本状态
+        let ws = null;
+        let clientId = null;
+        let peerId = null;
+        let currentDistributionId = null;
+        let downloadInProgress = false;
+
+        // 全局变量 - P2P相关
+        let peerConnections = {};  // 存储所有P2P连接
+        let dataChannels = {};     // 存储所有数据通道
+        let iceServers = [         // STUN/TURN服务器配置
+            { urls: 'stun:stun.l.google.com:19302' }
+        ];
+
+        // 全局变量 - 文件和下载状态
+        let fileData = {};         // 文件元数据
+        let pieceBuffer = {};      // 已下载分片缓存
+        let totalBytesDownloaded = 0;
+        let totalBytesToDownload = 0;
+        let bytesDownloadedSinceLastUpdate = 0;
+        let bytesUploadedSinceLastUpdate = 0;
+        let downloadStartTime = null;
+        let activePieceRequests = new Set();  // 跟踪正在请求的分片
+        let completedFiles = new Set();       // 已完成文件的集合
+
+        let heartbeatInterval = null;
+        const heartbeatDelay = 10000; // 10秒一次心跳
+
+        // 当页面加载完成时执行
+        document.addEventListener('DOMContentLoaded', function() {
+            // 检查URL中是否包含分发任务ID (例如通过分享链接打开)
+            const urlParams = new URLSearchParams(window.location.search);
+            const distIdFromUrl = urlParams.get('id');
+
+            if (distIdFromUrl) {
+                document.getElementById('distribution-id').value = distIdFromUrl;
+                // 自动加入分发任务
+                setTimeout(() => document.getElementById('join-btn').click(), 500);
+            }
+
+            // 注册事件处理器
+            document.getElementById('join-btn').addEventListener('click', joinDistribution);
+            document.getElementById('download-all-btn').addEventListener('click', startDownload);
+            document.getElementById('pause-btn').addEventListener('click', pauseDownload);
+
+            // 连接WebSocket
+            connectWebSocket();
+
+            // 启动速度监控
+            setInterval(updateSpeedDisplay, 1000);
+
+            // 定期请求新的节点和分片
+            setInterval(() => {
+                if (downloadInProgress) {
+                    requestPeers();
+                    requestPieceSuggestions();
+                }
+            }, 5000);
+
+            // 检查已完成的文件下载
+            setInterval(checkCompletedFiles, 2000);
+        });
+
+        // 调试日志函数
+        function logDebug(message, type = 'info') {
+            const logElement = document.getElementById('debug-log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+
+            entry.innerHTML = `<span class="log-time">[${timeString}]</span> ${message}`;
+            logElement.appendChild(entry);
+
+            // 自动滚动到底部
+            logElement.scrollTop = logElement.scrollHeight;
+
+            // 限制日志条目数
+            while (logElement.children.length > 500) {
+                logElement.removeChild(logElement.firstChild);
+            }
+
+            // 同时发送到控制台
+            console[type](message);
+        }
+
+        // 显示/隐藏调试日志
+        function toggleDebugLog() {
+            const debugLog = document.getElementById('debug-log');
+            debugLog.style.display = debugLog.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // 连接WebSocket
+        function connectWebSocket() {
+            // 创建WebSocket连接
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = function() {
+                logDebug('WebSocket连接已建立', 'info');
+                showAlert('已连接到服务器', 'info');
+                if(heartbeatInterval) {
+                     stopHeartbeat();
+                }
+                startHeartbeat();
+            };
+
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                logDebug(`收到WebSocket消息: ${data.type}`, 'info');
+
+                if (data.type === 'welcome') {
+                    clientId = data.client_id;
+                    logDebug(`已连接，客户端ID: ${clientId}`, 'info');
+                } else if (data.type === 'join_success') {
+                    handleJoinSuccess(data);
+                } else if (data.type === 'announce_success') {
+                    peerId = data.peer_id;
+                    logDebug(`成功注册到Tracker: ${peerId}`, 'info');
+                    if (!heartbeatInterval) {
+                        startHeartbeat();
+                    }
+                } else if (data.type === 'peers_list') {
+                    handlePeersList(data);
+                } else if (data.type === 'piece_suggestions') {
+                    handlePieceSuggestions(data);
+                } else if (data.type === 'error') {
+                    logDebug(`服务器返回错误: ${data.message}`, 'error');
+                    showAlert(`错误: ${data.message}`, 'error');
+                } else if (data.type === 'heartbeat') {
+                    // 心跳消息，无需特殊处理
+                }
+            };
+
+            ws.onclose = function() {
+                logDebug('WebSocket连接已关闭', 'warning');
+                showAlert('服务器连接已断开，将在5秒后重连', 'warning');
+                stopHeartbeat()
+
+                // 5秒后重连
+                setTimeout(connectWebSocket, 5000);
+            };
+
+            ws.onerror = function(error) {
+                logDebug('WebSocket连接错误', 'error');
+                showAlert('服务器连接错误', 'error');
+            };
+        }
+
+        // 加入分发任务
+        function joinDistribution() {
+            const distributionIdInput = document.getElementById('distribution-id');
+            const distributionId = distributionIdInput.value.trim();
+
+            if (!distributionId) {
+                showAlert('请输入分发任务ID', 'warning');
+                return;
+            }
+
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                showAlert('正在连接到服务器，请稍后再试', 'warning');
+                return;
+            }
+
+            // 发送加入请求
+            ws.send(JSON.stringify({
+                type: 'join_distribution',
+                distribution_id: distributionId
+            }));
+
+            logDebug(`请求加入分发任务: ${distributionId}`, 'info');
+            showAlert('正在加入分发任务...', 'info');
+        }
+
+        // 处理加入成功的响应
+        function handleJoinSuccess(data) {
+            currentDistributionId = data.distribution.id;
+
+            // 显示下载区域
+            document.getElementById('download-section').style.display = 'block';
+
+            // 填充分发任务信息
+            document.getElementById('distribution-name').textContent = data.distribution.name;
+            document.getElementById('distribution-created-at').textContent = new Date(data.distribution.created_at).toLocaleString();
+
+            // 重置下载状态
+            totalBytesDownloaded = 0;
+            totalBytesToDownload = data.distribution.total_size || 0;
+            fileData = {};
+            pieceBuffer = {};
+
+            // 渲染文件列表
+            const fileListElement = document.getElementById('file-list');
+            fileListElement.innerHTML = '';
+
+            if (data.distribution.files && data.distribution.files.length > 0) {
+                data.distribution.files.forEach(file => {
+                    // 初始化文件数据
+                    fileData[file.id] = {
+                        id: file.id,
+                        path: file.path,
+                        size: file.size,
+                        downloadedSize: 0,
+                        progress: 0,
+                        pieces: {},
+                        pieceCount: file.piece_count || 0,
+                        downloadedPieces: new Set()
+                    };
+
+                    const fileItem = document.createElement('li');
+                    fileItem.className = 'file-item';
+                    fileItem.id = `file-${file.id}`;
+                    fileItem.innerHTML = `
+                        <div style="flex-grow: 1;">
+                            <div><strong>${file.path}</strong></div>
+                            <div>大小: ${formatBytes(file.size)}</div>
+                            <div class="progress-container file-progress">
+                                <div class="progress-bar" style="width: 0%"></div>
+                            </div>
+                            <div><span class="progress-text">0</span>% 完成</div>
+                        </div>
+                        <div>
+                            <button class="download-button" data-id="${file.id}">下载</button>
+                        </div>
+                    `;
+                    fileListElement.appendChild(fileItem);
+
+                    // 添加单个文件下载按钮的事件处理器
+                    const downloadBtn = fileItem.querySelector('.download-button');
+                    downloadBtn.addEventListener('click', function() {
+                        const fileId = this.getAttribute('data-id');
+                        startDownloadFile(fileId);
+                    });
+                });
+            } else {
+                fileListElement.innerHTML = '<li class="file-item">没有可下载的文件</li>';
+            }
+
+            logDebug(`成功加入分发任务: ${data.distribution.name} (${currentDistributionId})`, 'info');
+            showAlert(`成功加入: ${data.distribution.name}`, 'success');
+
+            // 发送announce请求
+            announceToTracker();
+        }
+
+        // 向Tracker服务器通告
+        function announceToTracker() {
+            if (!currentDistributionId || !clientId) {
+                return;
+            }
+
+            // 获取本地IP和端口
+            // 在浏览器环境中，我们无法获取真实IP，使用随机端口作为标识
+            const port = Math.floor(Math.random() * 10000) + 50000;
+
+            ws.send(JSON.stringify({
+                type: 'announce',
+                distribution_id: currentDistributionId,
+                ip_address: window.location.hostname,
+                port: port,
+                user_agent: navigator.userAgent
+            }));
+
+            logDebug('向Tracker发送announce请求', 'info');
+        }
+
+        // 请求节点列表
+        function requestPeers() {
+            if (!ws || !currentDistributionId) return;
+
+            ws.send(JSON.stringify({
+                type: 'request_peers',
+                max_peers: 20
+            }));
+
+            logDebug('请求节点列表', 'info');
+        }
+
+        // 请求分片建议
+        function requestPieceSuggestions() {
+            if (!ws || !currentDistributionId || activePieceRequests.size >= 10) return;
+
+            ws.send(JSON.stringify({
+                type: 'request_pieces',
+                max_suggestions: 20
+            }));
+
+            logDebug('请求分片建议', 'info');
+        }
+
+        // 处理节点列表
+        function handlePeersList(data) {
+            const peers = data.peers || [];
+            logDebug(`收到节点列表: ${peers.length}个节点`, 'info');
+
+            document.getElementById('connected-peers').textContent =
+                Object.values(peerConnections).filter(pc => pc.connected).length;
+
+            // 如果正在下载，尝试连接到新节点
+            if (downloadInProgress) {
+                peers.forEach(peer => {
+                    if (!peerConnections[peer.id] && peer.id !== peerId) {
+                        initiatePeerConnection(peer);
+                    }
+                });
+            }
+        }
+
+        // 处理分片建议
+        function handlePieceSuggestions(data) {
+            if (!downloadInProgress) return;
+
+            const suggestions = data.suggestions || [];
+            logDebug(`收到${suggestions.length}个分片建议`, 'info');
+
+            suggestions.forEach(suggestion => {
+                // 检查该文件的分片是否已下载
+                const fileId = suggestion.file_id;
+                const pieceId = suggestion.piece_id;
+
+                if (fileData[fileId] &&
+                    !fileData[fileId].downloadedPieces.has(pieceId) &&
+                    !activePieceRequests.has(pieceId)) {
+
+                    // 记录这个分片正在请求
+                    activePieceRequests.add(pieceId);
+
+                    // 找到有这个分片的节点
+                    const availablePeers = suggestion.available_peers || [];
+
+                    // 尝试从每个可用节点请求分片
+                    // 在实际应用中可能需要更智能的选择策略
+                    for (const remotePeer of availablePeers) {
+                        // 检查是否已经与此节点建立连接
+                        const peerConnection = peerConnections[remotePeer.peer_id];
+                        if (peerConnection && peerConnection.connected) {
+                            const dataChannel = dataChannels[remotePeer.peer_id];
+                            if (dataChannel && dataChannel.readyState === 'open') {
+                                requestPieceFromPeer(dataChannel, pieceId, suggestion);
+                                break;  // 找到一个可用节点后就退出循环
+                            }
+                        } else if (!peerConnections[remotePeer.peer_id]) {
+                            // 如果还没有连接，则尝试建立连接
+                            initiatePeerConnection(remotePeer);
+                        }
+                    }
+                }
+            });
+
+            // 如果还有空闲容量，请求更多分片建议
+            if (activePieceRequests.size < 10 && downloadInProgress) {
+                setTimeout(requestPieceSuggestions, 500);
+            }
+        }
+
+        // 发起P2P连接
+        function initiatePeerConnection(peer) {
+            if (peerConnections[peer.id]) {
+                return;  // 已存在连接，不重复创建
+            }
+
+            logDebug(`开始连接节点: ${peer.id}`, 'info');
+
+            // 创建新的RTCPeerConnection
+            const peerConnection = new RTCPeerConnection({ iceServers });
+
+            // 存储连接状态
+            peerConnections[peer.id] = {
+                connection: peerConnection,
+                id: peer.id,
+                connected: false,
+                status: 'connecting',
+                lastActivity: Date.now(),
+                downloadedBytes: 0,
+                uploadedBytes: 0
+            };
+
+            // 创建数据通道
+            const dataChannel = peerConnection.createDataChannel('fileTransfer', {
+                ordered: true
+            });
+            setupDataChannel(dataChannel, peer.id);
+
+            // 监听ICE候选
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    // 在实际应用中，我们需要将ICE候选发送给对方
+                    // 这里我们通过WebSocket信令服务器中转
+                    sendSignalingMessage({
+                        type: 'ice_candidate',
+                        candidate: event.candidate,
+                        target: peer.id,
+                        source: peerId
+                    });
+                }
+            };
+
+            // 监听连接状态变化
+            peerConnection.onconnectionstatechange = () => {
+                if (peerConnection.connectionState === 'connected') {
+                    logDebug(`与节点 ${peer.id} 建立连接`, 'info');
+                    peerConnections[peer.id].connected = true;
+                    peerConnections[peer.id].status = 'connected';
+                    updatePeerConnectionsUI();
+                } else if (peerConnection.connectionState === 'disconnected' ||
+                          peerConnection.connectionState === 'failed') {
+                    logDebug(`与节点 ${peer.id} 的连接断开或失败`, 'warning');
+                    peerConnections[peer.id].connected = false;
+                    peerConnections[peer.id].status = 'disconnected';
+                    updatePeerConnectionsUI();
+
+                    // 如果正在下载，尝试重新连接
+                    if (downloadInProgress) {
+                        setTimeout(() => {
+                            cleanupPeerConnection(peer.id);
+                            initiatePeerConnection(peer);
+                        }, 2000);
+                    }
+                }
+            };
+
+            // 监听数据通道
+            peerConnection.ondatachannel = (event) => {
+                logDebug(`接收到来自节点 ${peer.id} 的数据通道`, 'info');
+                setupDataChannel(event.channel, peer.id);
+            };
+
+            // 创建并发送offer
+            peerConnection.createOffer()
+                .then(offer => peerConnection.setLocalDescription(offer))
+                .then(() => {
+                    // 发送offer到对方
+                    sendSignalingMessage({
+                        type: 'offer',
+                        offer: peerConnection.localDescription,
+                        target: peer.id,
+                        source: peerId
+                    });
+                })
+                .catch(error => {
+                    logDebug(`创建offer失败: ${error}`, 'error');
+                });
+
+            // 更新UI
+            updatePeerConnectionsUI();
+        }
+
+        // 设置数据通道
+        function setupDataChannel(dataChannel, peerId) {
+            dataChannels[peerId] = dataChannel;
+
+            dataChannel.onopen = () => {
+                logDebug(`与节点 ${peerId} 的数据通道已打开`, 'info');
+                peerConnections[peerId].connected = true;
+                peerConnections[peerId].status = 'connected';
+                updatePeerConnectionsUI();
+
+                // 连接成功后，如果正在下载，请求分片
+                if (downloadInProgress) {
+                    requestPieceSuggestions();
+                }
+            };
+
+            dataChannel.onclose = () => {
+                logDebug(`与节点 ${peerId} 的数据通道已关闭`, 'info');
+                peerConnections[peerId].connected = false;
+                peerConnections[peerId].status = 'disconnected';
+                updatePeerConnectionsUI();
+            };
+
+            dataChannel.onerror = (error) => {
+                logDebug(`数据通道错误: ${error}`, 'error');
+            };
+
+            dataChannel.onmessage = (event) => {
+                handleDataChannelMessage(event, peerId);
+            };
+        }
+
+        // 处理数据通道消息
+        function handleDataChannelMessage(event, sourcePeerId) {
+            // 更新最后活动时间
+            if (peerConnections[sourcePeerId]) {
+                peerConnections[sourcePeerId].lastActivity = Date.now();
+            }
+
+            // 如果是文本消息，解析JSON
+            if (typeof event.data === 'string') {
+                try {
+                    const message = JSON.parse(event.data);
+
+                    if (message.type === 'piece_request') {
+                        // 处理分片请求
+                        handlePieceRequest(message, sourcePeerId);
+                    } else if (message.type === 'piece_response_header') {
+                        // 处理分片响应头部
+                        prepareForPieceData(message);
+                    } else if (message.type === 'piece_not_available') {
+                        // 处理分片不可用的情况
+                        logDebug(`节点 ${sourcePeerId} 没有分片 ${message.piece_id}`, 'warning');
+                        activePieceRequests.delete(message.piece_id);
+                    }
+                } catch (e) {
+                    logDebug(`解析消息失败: ${e}`, 'error');
+                }
+            }
+            // 如果是二进制数据，处理分片数据
+            else if (event.data instanceof ArrayBuffer) {
+                handlePieceData(event.data, sourcePeerId);
+            }
+        }
+
+        // 请求分片数据
+        function requestPieceFromPeer(dataChannel, pieceId, pieceInfo) {
+            if (!dataChannel || dataChannel.readyState !== 'open') {
+                activePieceRequests.delete(pieceId);
+                return;
+            }
+
+            logDebug(`向节点请求分片: ${pieceId}`, 'info');
+
+            dataChannel.send(JSON.stringify({
+                type: 'piece_request',
+                piece_id: pieceId,
+                file_id: pieceInfo.file_id
+            }));
+        }
+
+        // 处理分片请求
+        function handlePieceRequest(message, sourcePeerId) {
+            const pieceId = message.piece_id;
+            const fileId = message.file_id;
+
+            logDebug(`收到分片请求: ${pieceId} (文件: ${fileId})`, 'info');
+
+            // 检查我们是否有此分片
+            if (fileData[fileId] && fileData[fileId].downloadedPieces.has(pieceId) && pieceBuffer[pieceId]) {
+                const dataChannel = dataChannels[sourcePeerId];
+
+                if (dataChannel && dataChannel.readyState === 'open') {
+                    // 发送分片头部信息
+                    dataChannel.send(JSON.stringify({
+                        type: 'piece_response_header',
+                        piece_id: pieceId,
+                        file_id: fileId,
+                        size: pieceBuffer[pieceId].byteLength
+                    }));
+
+                    // 发送分片数据
+                    dataChannel.send(pieceBuffer[pieceId]);
+
+                    // 更新上传统计
+                    if (peerConnections[sourcePeerId]) {
+                        peerConnections[sourcePeerId].uploadedBytes += pieceBuffer[pieceId].byteLength;
+                        bytesUploadedSinceLastUpdate += pieceBuffer[pieceId].byteLength;
+                    }
+
+                    logDebug(`分片 ${pieceId} 已发送给节点 ${sourcePeerId}`, 'info');
+                }
+            } else {
+                // 通知请求方分片不可用
+                const dataChannel = dataChannels[sourcePeerId];
+                if (dataChannel && dataChannel.readyState === 'open') {
+                    dataChannel.send(JSON.stringify({
+                        type: 'piece_not_available',
+                        piece_id: pieceId
+                    }));
+                }
+            }
+        }
+
+        // 准备接收分片数据
+        function prepareForPieceData(message) {
+            const pieceId = message.piece_id;
+            const fileId = message.file_id;
+            const size = message.size;
+
+            // 创建一个临时变量用于跟踪下个二进制消息
+            window.expectedPieceData = {
+                pieceId: pieceId,
+                fileId: fileId,
+                size: size
+            };
+
+            logDebug(`准备接收分片: ${pieceId} (大小: ${formatBytes(size)})`, 'info');
+        }
+
+        // 处理分片数据
+        function handlePieceData(data, sourcePeerId) {
+            // 检查是否有预期的分片数据
+            if (!window.expectedPieceData) {
+                logDebug('收到意外的二进制数据', 'error');
+                return;
+            }
+
+            const { pieceId, fileId, size } = window.expectedPieceData;
+
+            // 清除期望的分片数据
+            window.expectedPieceData = null;
+
+            // 验证数据大小
+            if (data.byteLength !== size) {
+                logDebug(`分片大小不匹配: 期望 ${size}, 实际 ${data.byteLength}`, 'error');
+                activePieceRequests.delete(pieceId);
+                return;
+            }
+
+            // 保存分片数据
+            pieceBuffer[pieceId] = data;
+
+            // 更新文件进度
+            if (fileData[fileId]) {
+                // 标记分片为已下载
+                fileData[fileId].downloadedPieces.add(pieceId);
+
+                // 更新下载大小和进度
+                const pieceSizeContribution = data.byteLength;
+                fileData[fileId].downloadedSize += pieceSizeContribution;
+                totalBytesDownloaded += pieceSizeContribution;
+                bytesDownloadedSinceLastUpdate += pieceSizeContribution;
+
+                // 更新文件进度百分比
+                fileData[fileId].progress = Math.min(100,
+                    Math.round((fileData[fileId].downloadedPieces.size / fileData[fileId].pieceCount) * 100));
+
+                // 更新UI
+                updateFileProgress(fileId, fileData[fileId].progress);
+                updateOverallProgress();
+
+                // 更新下载统计
+                if (peerConnections[sourcePeerId]) {
+                    peerConnections[sourcePeerId].downloadedBytes += pieceSizeContribution;
+                }
+
+                // 通知服务器此分片已下载
+                notifyPieceDownloaded(pieceId);
+
+                logDebug(`分片 ${pieceId} 已从节点 ${sourcePeerId} 下载完成`, 'info');
+            }
+
+            // 从活动请求中移除
+            activePieceRequests.delete(pieceId);
+
+            // 如果还在下载状态，请求更多分片
+            if (downloadInProgress && activePieceRequests.size < 10) {
+                requestPieceSuggestions();
+            }
+        }
+
+        // 向服务器通知分片已下载
+        function notifyPieceDownloaded(pieceId) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+            ws.send(JSON.stringify({
+                type: 'update_piece',
+                piece_id: pieceId,
+                has_piece: true
+            }));
+        }
+
+        // 发送信令消息
+        function sendSignalingMessage(message) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                logDebug('WebSocket未连接，无法发送信令消息', 'error');
+                return;
+            }
+
+            ws.send(JSON.stringify({
+                type: 'signaling',
+                payload: message
+            }));
+
+            logDebug(`发送信令消息: ${message.type} 给节点 ${message.target}`, 'info');
+        }
+
+        // 处理信令消息
+        function handleSignalingMessage(message) {
+            if (!message.source || !message.target || message.target !== peerId) {
+                return; // 不是发给我的消息
+            }
+
+            const sourcePeerId = message.source;
+
+            if (message.type === 'offer') {
+                handleOfferMessage(message, sourcePeerId);
+            } else if (message.type === 'answer') {
+                handleAnswerMessage(message, sourcePeerId);
+            } else if (message.type === 'ice_candidate') {
+                handleICECandidateMessage(message, sourcePeerId);
+            }
+        }
+
+        // 处理Offer信令
+        function handleOfferMessage(message, sourcePeerId) {
+            logDebug(`收到节点 ${sourcePeerId} 的offer`, 'info');
+
+            // 如果已经有连接，先清理
+            if (peerConnections[sourcePeerId]) {
+                cleanupPeerConnection(sourcePeerId);
+            }
+
+            // 创建新的连接
+            const peerConnection = new RTCPeerConnection({ iceServers });
+
+            // 存储连接状态
+            peerConnections[sourcePeerId] = {
+                connection: peerConnection,
+                id: sourcePeerId,
+                connected: false,
+                status: 'connecting',
+                lastActivity: Date.now(),
+                downloadedBytes: 0,
+                uploadedBytes: 0
+            };
+
+            // 添加数据通道处理
+            peerConnection.ondatachannel = (event) => {
+                setupDataChannel(event.channel, sourcePeerId);
+            };
+
+            // 监听ICE候选
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    sendSignalingMessage({
+                        type: 'ice_candidate',
+                        candidate: event.candidate,
+                        target: sourcePeerId,
+                        source: peerId
+                    });
+                }
+            };
+
+            // 监听连接状态
+            peerConnection.onconnectionstatechange = () => {
+                if (peerConnection.connectionState === 'connected') {
+                    logDebug(`与节点 ${sourcePeerId} 建立连接`, 'info');
+                    peerConnections[sourcePeerId].connected = true;
+                    peerConnections[sourcePeerId].status = 'connected';
+                } else if (peerConnection.connectionState === 'disconnected' ||
+                          peerConnection.connectionState === 'failed') {
+                    logDebug(`与节点 ${sourcePeerId} 的连接断开或失败`, 'warning');
+                    peerConnections[sourcePeerId].connected = false;
+                    peerConnections[sourcePeerId].status = 'disconnected';
+                }
+
+                updatePeerConnectionsUI();
+            };
+
+            // 设置远程描述(offer)然后创建应答
+            peerConnection.setRemoteDescription(new RTCSessionDescription(message.offer))
+                .then(() => peerConnection.createAnswer())
+                .then(answer => peerConnection.setLocalDescription(answer))
+                .then(() => {
+                    sendSignalingMessage({
+                        type: 'answer',
+                        answer: peerConnection.localDescription,
+                        target: sourcePeerId,
+                        source: peerId
+                    });
+                })
+                .catch(error => {
+                    logDebug(`处理offer失败: ${error}`, 'error');
+                });
+
+            updatePeerConnectionsUI();
+        }
+
+        // 处理Answer信令
+        function handleAnswerMessage(message, sourcePeerId) {
+            logDebug(`收到节点 ${sourcePeerId} 的answer`, 'info');
+
+            const peerConnection = peerConnections[sourcePeerId]?.connection;
+            if (peerConnection) {
+                peerConnection.setRemoteDescription(new RTCSessionDescription(message.answer))
+                    .catch(error => {
+                        logDebug(`设置远程描述失败: ${error}`, 'error');
+                    });
+            } else {
+                logDebug(`找不到与节点 ${sourcePeerId} 的连接`, 'warning');
+            }
+        }
+
+        // 处理ICE候选信令
+        function handleICECandidateMessage(message, sourcePeerId) {
+            logDebug(`收到节点 ${sourcePeerId} 的ICE候选`, 'info');
+
+            const peerConnection = peerConnections[sourcePeerId]?.connection;
+            if (peerConnection) {
+                peerConnection.addIceCandidate(new RTCIceCandidate(message.candidate))
+                    .catch(error => {
+                        logDebug(`添加ICE候选失败: ${error}`, 'error');
+                    });
+            } else {
+                logDebug(`找不到与节点 ${sourcePeerId} 的连接`, 'warning');
+            }
+        }
+
+        // 清理节点连接
+        function cleanupPeerConnection(peerId) {
+            if (peerConnections[peerId]) {
+                if (peerConnections[peerId].connection) {
+                    peerConnections[peerId].connection.close();
+                }
+                delete peerConnections[peerId];
+            }
+
+            if (dataChannels[peerId]) {
+                dataChannels[peerId].close();
+                delete dataChannels[peerId];
+            }
+
+            updatePeerConnectionsUI();
+        }
+
+        // 更新节点连接UI
+        function updatePeerConnectionsUI() {
+            const connectionsElement = document.getElementById('peer-connections');
+            connectionsElement.innerHTML = '';
+
+            const connectedPeerCount = Object.values(peerConnections).filter(pc => pc.connected).length;
+            document.getElementById('connected-peers').textContent = connectedPeerCount;
+
+            if (Object.keys(peerConnections).length === 0) {
+                connectionsElement.innerHTML = '<div class="alert alert-info">没有活动连接</div>';
+                return;
+            }
+
+            for (const [peerId, peerData] of Object.entries(peerConnections)) {
+                const peerElement = document.createElement('div');
+                peerElement.className = 'peer-connection';
+
+                let statusClass = '';
+                if (peerData.status === 'connected') {
+                    statusClass = 'status-connected';
+                } else if (peerData.status === 'connecting') {
+                    statusClass = 'status-connecting';
+                } else {
+                    statusClass = 'status-disconnected';
+                }
+
+                peerElement.innerHTML = `
+                    <div class="connection-status ${statusClass}"></div>
+                    <div>
+                        <div>节点: ${peerId.slice(0, 8)}...</div>
+                        <div>状态: ${peerData.status === 'connected' ? '已连接' :
+                                     peerData.status === 'connecting' ? '连接中' : '已断开'}</div>
+                        <div>下载: ${formatBytes(peerData.downloadedBytes)} | 上传: ${formatBytes(peerData.uploadedBytes)}</div>
+                    </div>
+                `;
+
+                connectionsElement.appendChild(peerElement);
+            }
+        }
+
+        // 开始下载所有文件
+        function startDownload() {
+            if (downloadInProgress) return;
+
+            downloadInProgress = true;
+            document.getElementById('download-all-btn').disabled = true;
+            document.getElementById('pause-btn').disabled = false;
+
+            // 记录下载开始时间
+            downloadStartTime = new Date();
+
+            logDebug('开始下载所有文件', 'info');
+            showAlert('开始下载文件', 'success');
+
+            // 请求节点列表
+            requestPeers();
+
+            // 请求分片建议
+            requestPieceSuggestions();
+        }
+
+        // 开始下载特定文件
+        function startDownloadFile(fileId) {
+            if (!fileData[fileId]) return;
+
+            // 如果全局下载未开始，先启动它
+            if (!downloadInProgress) {
+                startDownload();
+            }
+
+            logDebug(`开始下载文件: ${fileData[fileId].path}`, 'info');
+            showAlert(`开始下载: ${fileData[fileId].path}`, 'info');
+
+            // 这里可以添加优先下载特定文件的逻辑
+        }
+
+        // 暂停下载
+        function pauseDownload() {
+            downloadInProgress = false;
+            document.getElementById('download-all-btn').disabled = false;
+            document.getElementById('pause-btn').disabled = true;
+
+            logDebug('下载已暂停', 'info');
+            showAlert('下载已暂停', 'info');
+        }
+
+        // 更新文件进度显示
+        function updateFileProgress(fileId, progress) {
+            const fileElement = document.getElementById(`file-${fileId}`);
+            if (!fileElement) return;
+
+            const progressBar = fileElement.querySelector('.progress-bar');
+            const progressText = fileElement.querySelector('.progress-text');
+
+            if (progressBar) progressBar.style.width = `${progress}%`;
+            if (progressText) progressText.textContent = progress;
+        }
+
+        // 更新整体进度
+        function updateOverallProgress() {
+            // 计算总体进度百分比
+            let totalPieces = 0;
+            let downloadedPieces = 0;
+
+            for (const fileId in fileData) {
+                if (fileData.hasOwnProperty(fileId)) {
+                    const file = fileData[fileId];
+                    totalPieces += file.pieceCount;
+                    downloadedPieces += file.downloadedPieces.size;
+                }
+            }
+
+            const overallProgress = totalPieces > 0 ?
+                Math.min(100, Math.round((downloadedPieces / totalPieces) * 100)) : 0;
+
+            document.getElementById('overall-progress').style.width = `${overallProgress}%`;
+            document.getElementById('overall-percent').textContent = overallProgress;
+
+            // 更新剩余时间估计
+            updateRemainingTime();
+        }
+
+        // 更新剩余时间估计
+        function updateRemainingTime() {
+            if (!downloadStartTime || totalBytesDownloaded === 0 || totalBytesToDownload === 0) {
+                document.getElementById('remaining-time').textContent = '计算中...';
+                return;
+            }
+
+            const elapsedSeconds = (new Date() - downloadStartTime) / 1000;
+            const bytesRemaining = totalBytesToDownload - totalBytesDownloaded;
+
+            if (bytesRemaining <= 0) {
+                document.getElementById('remaining-time').textContent = '已完成';
+                return;
+            }
+
+            const downloadRate = totalBytesDownloaded / elapsedSeconds; // bytes per second
+
+            if (downloadRate <= 0) {
+                document.getElementById('remaining-time').textContent = '计算中...';
+                return;
+            }
+
+            const secondsRemaining = Math.round(bytesRemaining / downloadRate);
+            document.getElementById('remaining-time').textContent = formatTime(secondsRemaining);
+        }
+
+        // 更新速度显示
+        function updateSpeedDisplay() {
+            const currentDownloadSpeed = bytesDownloadedSinceLastUpdate;
+            const currentUploadSpeed = bytesUploadedSinceLastUpdate;
+
+            // 重置计数器
+            bytesDownloadedSinceLastUpdate = 0;
+            bytesUploadedSinceLastUpdate = 0;
+
+            // 更新UI
+            document.getElementById('download-speed').textContent = formatBytes(currentDownloadSpeed) + '/s';
+            document.getElementById('upload-speed').textContent = formatBytes(currentUploadSpeed) + '/s';
+
+            // 更新连接状态UI
+            updatePeerConnectionsUI();
+        }
+
+        // 检查文件是否完成下载
+        function checkCompletedFiles() {
+            for (const fileId in fileData) {
+                if (fileData.hasOwnProperty(fileId)) {
+                    const file = fileData[fileId];
+
+                    // 如果文件下载完成且还未处理
+                    if (file.pieceCount > 0 &&
+                        file.downloadedPieces.size >= file.pieceCount &&
+                        !completedFiles.has(fileId)) {
+
+                        completedFiles.add(fileId);
+                        logDebug(`文件下载完成: ${file.path}`, 'info');
+                        showAlert(`文件下载完成: ${file.path}`, 'success');
+
+                        // 重组文件并提供下载
+                        assembleAndDownloadFile(file);
+                    }
+                }
+            }
+        }
+
+        // 重组并下载完整文件
+        function assembleAndDownloadFile(file) {
+            logDebug(`开始组装文件: ${file.path}`, 'info');
+
+            // 在实际应用中，这应该基于文件分片信息
+            // 这里我们模拟文件组装过程
+
+            // 创建下载链接
+            const fileElement = document.getElementById(`file-${file.id}`);
+            if (fileElement) {
+                const downloadButton = fileElement.querySelector('.download-button');
+                if (downloadButton) {
+                    downloadButton.textContent = '保存文件';
+                    downloadButton.removeEventListener('click', () => {});
+                    downloadButton.addEventListener('click', () => {
+                        // 创建一个虚拟的文件下载链接
+                        // 注意：在实际应用中，这里应该使用实际的文件数据
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(new Blob([new ArrayBuffer(file.size)]));
+                        a.download = file.path.split('/').pop();
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    });
+                }
+            }
+        }
+
+        // 显示提示消息
+        function showAlert(message, type) {
+            const alertsContainer = document.getElementById('alerts');
+
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+
+            alertsContainer.appendChild(alert);
+
+            // 3秒后自动移除
+            setTimeout(() => {
+                alert.remove();
+            }, 3000);
+        }
+
+        // 格式化字节大小
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        // 格式化时间
+        function formatTime(seconds) {
+            if (seconds < 60) return `${seconds}秒`;
+
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes}分${seconds % 60}秒`;
+
+            const hours = Math.floor(minutes / 60);
+            return `${hours}时${minutes % 60}分`;
+        }
+        // 启动心跳
+    function startHeartbeat() {
+        if (heartbeatInterval) {
+            clearInterval(heartbeatInterval);
+        }
+
+        this.heartbeatInterval = setInterval(() => {
+            if (!connected || !peerId || !currentDistributionId) {
+                return; // 未完全初始化，不发送心跳
+            }
+
+            this.sendHeartbeat();
+        }, this.heartbeatDelay);
+
+        console.log('心跳机制已启动');
+    }
+
+    // 停止心跳
+    function stopHeartbeat() {
+        if (heartbeatInterval) {
+            clearInterval(heartbeatInterval);
+            heartbeatInterval = null;
+            console.log('心跳机制已停止');
+        }
+    }
+
+    // 发送心跳消息
+    function sendHeartbeat() {
+        if (!connected || !ws || !peerId) {
+            return;
+        }
+
+        ws.send(JSON.stringify({
+            type: 'heartbeat',
+            peer_id: peerId,
+            distribution_id: currentDistributionId
+        }));
+
+        console.debug('已发送心跳');
+    }
+
+
+    </script>
+</body>
+</html>

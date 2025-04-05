@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+        }
+        .info {
+            background-color: #e9f5ff;
+            border-left: 4px solid #007BFF;
+            padding: 10px 15px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        .button {
+            display: inline-block;
+            background-color: #007BFF;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background-color 0.3s;
+            margin-top: 20px;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        .dist-id {
+            font-family: monospace;
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>加入分发任务</h1>
+        
+        <div class="info">
+            <p>您已收到一个文件分发任务的邀请链接。点击下面的按钮继续接收文件。</p>
+        </div>
+        
+        <p>分发任务ID: <span class="dist-id">{{ distribution_id }}</span></p>
+        
+        <a href="/student?id={{ distribution_id }}" class="button">继续到学生端</a>
+        
+        <div class="info">
+            <p><strong>注意:</strong> 您需要保持与教室局域网的连接才能接收文件。</p>
+        </div>
+    </div>
+</body>
+</html>

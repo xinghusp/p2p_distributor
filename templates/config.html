@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .info-section {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .config-item {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .config-item:last-child {
+            border-bottom: none;
+        }
+        .config-label {
+            font-weight: bold;
+            color: #495057;
+        }
+        .config-value {
+            font-family: monospace;
+            background: #e9ecef;
+            padding: 3px 6px;
+            border-radius: 3px;
+        }
+        .ip-list {
+            list-style: none;
+            padding: 0;
+        }
+        .ip-list li {
+            margin-bottom: 5px;
+        }
+        .qrcode {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #007BFF;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>服务器配置信息</h1>
+        
+        <div class="info-section">
+            <div class="config-item">
+                <span class="config-label">服务器状态:</span>
+                <span style="color: green; font-weight: bold;">运行中</span>
+            </div>
+            
+            <div class="config-item">
+                <span class="config-label">监听地址:</span>
+                <span class="config-value">{{ host }}:{{ port }}</span>
+            </div>
+            
+            <div class="config-item">
+                <span class="config-label">可用IP地址:</span>
+                <ul class="ip-list">
+                    {% for ip in ip_addresses %}
+                        <li><span class="config-value">{{ ip }}</span> - <a href="https://{{ ip }}:{{ port }}" target="_blank">https://{{ ip }}:{{ port }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            
+            <div class="config-item">
+                <span class="config-label">首选访问URL:</span>
+                <span class="config-value">{{ https_url }}</span>
+            </div>
+        </div>
+        
+        <h2>访问说明</h2>
+        <p>教师可以通过以下方式分享系统访问链接:</p>
+        <ol>
+            <li>分享首选访问URL: <strong>{{ https_url }}</strong></li>
+            <li>让学生使用局域网内任意可用IP地址访问</li>
+        </ol>
+        
+        <p><strong>注意:</strong> 首次访问时，浏览器会显示证书警告。这是正常的，请点击"继续访问"。</p>
+        
+        <a href="/" class="back-link">返回首页</a>
+    </div>
+</body>
+</html>
