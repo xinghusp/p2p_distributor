@@ -360,7 +360,7 @@
             }
 
             // 同时发送到控制台
-            console[type](message);
+            console.log(message);
         }
 
         // 显示/隐藏调试日志
@@ -406,7 +406,10 @@
                     handlePeersList(data);
                 } else if (data.type === 'piece_suggestions') {
                     handlePieceSuggestions(data);
-                } else if (data.type === 'error') {
+                }else if (data.type === 'signaling') {  // 添加处理信令消息
+                    handleSignalingMessage(data.payload);
+                }
+                else if (data.type === 'error') {
                     logDebug(`服务器返回错误: ${data.message}`, 'error');
                     showAlert(`错误: ${data.message}`, 'error');
                 } else if (data.type === 'heartbeat') {
@@ -589,51 +592,66 @@
         }
 
         // 处理分片建议
-        function handlePieceSuggestions(data) {
-            if (!downloadInProgress) return;
+function handlePieceSuggestions(data) {
+    if (!downloadInProgress) return;
 
-            const suggestions = data.suggestions || [];
-            logDebug(`收到${suggestions.length}个分片建议`, 'info');
+    const suggestions = data.suggestions || [];
+    logDebug(`收到${suggestions.length}个分片建议`, 'info');
 
-            suggestions.forEach(suggestion => {
-                // 检查该文件的分片是否已下载
-                const fileId = suggestion.file_id;
-                const pieceId = suggestion.piece_id;
+    suggestions.forEach(suggestion => {
+        // 检查该文件的分片是否已下载
+        const fileId = suggestion.file_id;
+        const pieceId = suggestion.piece_id;
 
-                if (fileData[fileId] &&
-                    !fileData[fileId].downloadedPieces.has(pieceId) &&
-                    !activePieceRequests.has(pieceId)) {
+        if (fileData[fileId] &&
+            !fileData[fileId].downloadedPieces.has(pieceId) &&
+            !activePieceRequests.has(pieceId)) {
 
-                    // 记录这个分片正在请求
-                    activePieceRequests.add(pieceId);
+            // 记录这个分片正在请求
+            activePieceRequests.add(pieceId);
 
-                    // 找到有这个分片的节点
-                    const availablePeers = suggestion.available_peers || [];
+            // 找到有这个分片的节点
+            const availablePeers = suggestion.available_peers || [];
 
-                    // 尝试从每个可用节点请求分片
-                    // 在实际应用中可能需要更智能的选择策略
-                    for (const remotePeer of availablePeers) {
-                        // 检查是否已经与此节点建立连接
-                        const peerConnection = peerConnections[remotePeer.peer_id];
-                        if (peerConnection && peerConnection.connected) {
-                            const dataChannel = dataChannels[remotePeer.peer_id];
-                            if (dataChannel && dataChannel.readyState === 'open') {
-                                requestPieceFromPeer(dataChannel, pieceId, suggestion);
-                                break;  // 找到一个可用节点后就退出循环
-                            }
-                        } else if (!peerConnections[remotePeer.peer_id]) {
-                            // 如果还没有连接，则尝试建立连接
-                            initiatePeerConnection(remotePeer);
-                        }
+            if (availablePeers.length === 0) {
+                logDebug(`分片 ${pieceId} 没有可用节点`, 'warning');
+                activePieceRequests.delete(pieceId);
+                return;
+            }
+
+            // 尝试从可用节点请求分片
+            let requestSent = false;
+            for (const remotePeer of availablePeers) {
+                // 检查是否已经与此节点建立连接
+                const peerConnection = peerConnections[remotePeer.peer_id];
+                if (peerConnection && peerConnection.connected) {
+                    const dataChannel = dataChannels[remotePeer.peer_id];
+                    if (dataChannel && dataChannel.readyState === 'open') {
+                        logDebug(`向节点 ${remotePeer.peer_id} 发送分片请求: ${pieceId}`, 'info');
+                        dataChannel.send(JSON.stringify({
+                            type: 'piece_request',
+                            piece_id: pieceId,
+                            file_id: fileId
+                        }));
+                        requestSent = true;
+                        break;
                     }
                 }
-            });
+            }
 
-            // 如果还有空闲容量，请求更多分片建议
-            if (activePieceRequests.size < 10 && downloadInProgress) {
-                setTimeout(requestPieceSuggestions, 500);
+            // 如果没有发送任何请求，从活动请求中移除
+            if (!requestSent) {
+                activePieceRequests.delete(pieceId);
+                logDebug(`没有可用的连接来请求分片 ${pieceId}`, 'warning');
             }
         }
+    });
+
+    // 如果还有空闲容量，请求更多分片建议
+    if (activePieceRequests.size < 10 && downloadInProgress) {
+        setTimeout(requestPieceSuggestions, 500);
+    }
+}
 
         // 发起P2P连接
         function initiatePeerConnection(peer) {

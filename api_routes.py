@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from starlette.responses import Response
 
 from database import Distribution, FileInfo, Peer, FilePiece, db_operation
 from file_processor import FileProcessor
@@ -381,6 +382,54 @@ async def pause_distribution(distribution_id: str):
     except Exception as e:
         logging.error(f"暂停分发任务失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"暂停分发任务失败: {str(e)}")
+
+
+@router.get("/api/pieces/{piece_id}/data", response_class=Response)
+async def get_piece_data(piece_id: str):
+    """获取分片二进制数据"""
+    try:
+        async def fetch_piece(session):
+            # 获取分片信息
+            stmt = select(FilePiece).where(FilePiece.id == piece_id)
+            result = await session.execute(stmt)
+            piece = result.scalars().first()
+
+            if not piece:
+                raise HTTPException(status_code=404, detail=f"分片不存在: {piece_id}")
+
+            # 获取文件信息
+            file_stmt = select(FileInfo).where(FileInfo.id == piece.file_id)
+            file_result = await session.execute(file_stmt)
+            file_info = file_result.scalars().first()
+
+            if not file_info:
+                raise HTTPException(status_code=404, detail=f"文件不存在")
+
+            # 构造文件路径
+            file_path = os.path.join("uploads", file_info.distribution_id, file_info.path)
+
+            if not os.path.exists(file_path):
+                raise HTTPException(status_code=404, detail=f"文件不存在: {file_path}")
+
+            # 读取分片数据
+            with open(file_path, "rb") as f:
+                f.seek(piece.offset)
+                data = f.read(piece.size)
+
+            return data, piece.size
+
+        data, size = await db_operation(fetch_piece)
+
+        return Response(
+            content=data,
+            media_type="application/octet-stream",
+            headers={"Content-Length": str(size)}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"获取分片数据失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"获取分片数据失败: {str(e)}")
 
 @router.websocket("/ws")
 async def websocket_route(websocket: WebSocket):

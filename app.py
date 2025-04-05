@@ -4,6 +4,8 @@ import asyncio
 import logging
 import os
 import socket
+import time
+
 import uvicorn
 from typing import Dict, Any
 
@@ -13,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+import config
 from api_routes import router, get_tracker, manager
 from certificate import get_cert_paths
 from config import HOST, PORT, DEBUG
@@ -148,9 +151,8 @@ async def startup_event():
     logging.info("正在启动P2P文件分发服务...")
 
     try:
-        # 初始化数据库
+        # 确保数据库初始化完成
         await init_database()
-
 
         # 初始化P2P追踪器
         tracker = get_tracker()

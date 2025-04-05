@@ -192,6 +192,8 @@ async def handle_ws_message(websocket: WebSocket, client_id: str):
                 })
             elif message_type == "heartbeat":  # 添加心跳处理
                 await handle_heartbeat(client_id, data)
+            elif message_type == "signaling":  # 添加对信令消息的处理
+                await handle_signaling(client_id, data)
             else:
                 await manager.send_json(client_id, {
                     "type": "error",
@@ -413,6 +415,69 @@ async def handle_heartbeat(client_id: str, message: Dict[str, Any]):
     except Exception as e:
         logging.error(f"处理心跳消息失败: {e}", exc_info=True)
         # 不向客户端发送错误，因为这可能会导致循环
+
+
+# 添加新的处理信令消息的函数
+async def handle_signaling(client_id: str, data: Dict[str, Any]):
+    """处理WebRTC信令消息
+
+    参数:
+        client_id: 发送消息的客户端ID
+        data: 消息数据
+    """
+    try:
+        # 提取信令负载
+        payload = data.get("payload")
+        if not payload:
+            await manager.send_json(client_id, {
+                "type": "error",
+                "message": "信令消息缺少payload"
+            })
+            return
+
+        # 检查目标节点ID
+        target_client_id = None
+        target_peer_id = payload.get("target")
+
+        if not target_peer_id:
+            await manager.send_json(client_id, {
+                "type": "error",
+                "message": "信令消息缺少目标节点ID"
+            })
+            return
+
+        # 查找目标节点的client_id
+        for cid, info in manager.client_data.items():
+            if info.get("peer_id") == target_peer_id:
+                target_client_id = cid
+                break
+
+        if not target_client_id:
+            await manager.send_json(client_id, {
+                "type": "error",
+                "message": f"目标节点未找到: {target_peer_id}"
+            })
+            return
+
+        # 确保发送者ID是正确的
+        source_peer_id = manager.client_data.get(client_id, {}).get("peer_id")
+        if source_peer_id:
+            payload["source"] = source_peer_id
+
+        # 转发信令消息到目标节点
+        await manager.send_json(target_client_id, {
+            "type": "signaling",
+            "payload": payload
+        })
+
+        logging.debug(f"信令消息已转发: 从 {client_id} 到 {target_client_id}, 类型: {payload.get('type')}")
+
+    except Exception as e:
+        logging.error(f"处理信令消息出错: {e}", exc_info=True)
+        await manager.send_json(client_id, {
+            "type": "error",
+            "message": f"处理信令消息失败: {str(e)}"
+        })
 
 # WebSocket路由处理函数 - 移除db参数依赖
 async def websocket_endpoint(websocket: WebSocket, client_id: str = None):

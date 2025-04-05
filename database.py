@@ -86,21 +86,30 @@ async def db_operation(func: Callable[[AsyncSession], Awaitable[T]]) -> T:
 async def init_database():
     """初始化数据库"""
     try:
+        logging.info("开始初始化数据库...")
+
         # 创建所有表
         async with engine.begin() as conn:
+            logging.info("创建数据库表...")
             await conn.run_sync(Base.metadata.create_all)
+            logging.info("数据库表创建完成")
 
             # 配置SQLite优化
+            logging.info("应用SQLite优化配置...")
             await conn.execute(text("PRAGMA journal_mode=WAL;"))
             await conn.execute(text("PRAGMA temp_store=MEMORY;"))
             await conn.execute(text("PRAGMA read_uncommitted=1;"))
             await conn.execute(text("PRAGMA synchronous=NORMAL;"))
             await conn.execute(text("PRAGMA cache_size=10000;"))
+            logging.info("SQLite优化配置已应用")
 
         logging.info("数据库初始化完成")
+        return True
     except Exception as e:
         logging.error(f"数据库初始化失败: {e}", exc_info=True)
+        # 抛出异常以确保应用不会在数据库初始化失败的情况下继续运行
         raise
+
 
 # ====== 数据库模型定义 ======
 

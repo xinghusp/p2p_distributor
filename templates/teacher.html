@@ -12,30 +12,36 @@
             padding: 20px;
             background-color: #f5f5f5;
         }
+
         .container {
             max-width: 1000px;
             margin: 0 auto;
             background: white;
             padding: 20px;
             border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
+
         h1, h2 {
             color: #333;
         }
+
         .section {
             margin-bottom: 30px;
             border-bottom: 1px solid #eee;
             padding-bottom: 20px;
         }
+
         .form-group {
             margin-bottom: 15px;
         }
+
         label {
             display: block;
             margin-bottom: 5px;
             font-weight: bold;
         }
+
         input[type="text"], input[type="number"], input[type="file"] {
             width: 100%;
             padding: 8px;
@@ -43,6 +49,7 @@
             border-radius: 4px;
             box-sizing: border-box;
         }
+
         button {
             background-color: #007BFF;
             color: white;
@@ -52,30 +59,36 @@
             cursor: pointer;
             font-weight: bold;
         }
+
         button:hover {
             background-color: #0056b3;
         }
+
         .card {
             border: 1px solid #ddd;
             border-radius: 4px;
             padding: 15px;
             margin-bottom: 15px;
         }
+
         .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 10px;
         }
+
         .card-title {
             margin: 0;
             font-size: 18px;
         }
+
         .progress-container {
             background-color: #f5f5f5;
             border-radius: 4px;
             margin-bottom: 10px;
         }
+
         .progress-bar {
             height: 20px;
             background-color: #4CAF50;
@@ -83,18 +96,22 @@
             width: 0%;
             transition: width 0.3s;
         }
+
         .file-list {
             list-style: none;
             padding: 0;
             margin: 0;
         }
+
         .file-item {
             padding: 8px;
             border-bottom: 1px solid #eee;
         }
+
         .file-item:last-child {
             border-bottom: none;
         }
+
         .status {
             display: inline-block;
             padding: 3px 8px;
@@ -102,14 +119,17 @@
             font-size: 12px;
             font-weight: bold;
         }
+
         .status-active {
             background-color: #d4edda;
             color: #155724;
         }
+
         .status-paused {
             background-color: #fff3cd;
             color: #856404;
         }
+
         .peer-list {
             height: 300px;
             overflow-y: auto;
@@ -117,340 +137,912 @@
             border-radius: 4px;
             padding: 10px;
         }
+
         .peer-item {
             padding: 8px;
             border-bottom: 1px solid #eee;
             display: flex;
             justify-content: space-between;
         }
+
         .peer-item:last-child {
             border-bottom: none;
         }
+
         .back-link {
             display: inline-block;
             margin-top: 20px;
             color: #007BFF;
             text-decoration: none;
         }
+
         .back-link:hover {
             text-decoration: underline;
         }
+
         .alert {
             padding: 10px 15px;
             margin-bottom: 15px;
             border-radius: 4px;
         }
+
         .alert-info {
             background-color: #d1ecf1;
             color: #0c5460;
             border: 1px solid #bee5eb;
         }
+
         .alert-success {
             background-color: #d4edda;
             color: #155724;
             border: 1px solid #c3e6cb;
         }
+
         .alert-warning {
             background-color: #fff3cd;
             color: #856404;
             border: 1px solid #ffeeba;
         }
+
         .alert-error {
             background-color: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
+
+        .connection-status {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            display: inline-block;
+        }
+
+        .status-connected {
+            background-color: #28a745;
+        }
+
+        .status-connecting {
+            background-color: #ffc107;
+        }
+
+        .status-disconnected {
+            background-color: #dc3545;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>教师控制台</h1>
+<div class="container">
+    <h1>教师控制台</h1>
 
-        <div id="alerts"></div>
+    <div id="alerts"></div>
 
-        <div class="section">
-            <h2>创建新分发任务</h2>
-            <div class="form-group">
-                <label for="distribution-name">分发任务名称:</label>
-                <input type="text" id="distribution-name" placeholder="例如: 2025春季Python实验资料">
-            </div>
-            <button id="create-distribution-btn">创建分发任务</button>
+    <div class="section">
+        <h2>创建新分发任务</h2>
+        <div class="form-group">
+            <label for="distribution-name">分发任务名称:</label>
+            <input type="text" id="distribution-name" placeholder="例如: 2025春季Python实验资料">
         </div>
-
-        <div class="section" id="file-upload-section" style="display: none;">
-            <h2>上传文件</h2>
-            <div class="form-group">
-                <label for="file-upload">选择文件:</label>
-                <input type="file" id="file-upload">
-            </div>
-            <div class="form-group">
-                <label for="file-path">文件路径 (可选):</label>
-                <input type="text" id="file-path" placeholder="例如: 实验资料/python入门.pdf">
-            </div>
-            <div class="form-group">
-                <label for="file-priority">优先级 (0-10):</label>
-                <input type="number" id="file-priority" min="0" max="10" value="0">
-            </div>
-            <div class="progress-container" id="upload-progress-container" style="display: none;">
-                <div class="progress-bar" id="upload-progress-bar"></div>
-            </div>
-            <button id="upload-file-btn">上传文件</button>
-        </div>
-
-        <div class="section">
-            <h2>分发任务列表</h2>
-            <div id="distribution-list">
-                <div class="alert alert-info">加载中...</div>
-            </div>
-        </div>
-
-        <div class="section" id="distribution-detail" style="display: none;">
-            <h2>分发任务详情</h2>
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title" id="detail-name"></h3>
-                    <div>
-                        <span class="status" id="detail-status"></span>
-                    </div>
-                </div>
-                <div>
-                    <p><strong>创建时间:</strong> <span id="detail-created-at"></span></p>
-                    <p><strong>总大小:</strong> <span id="detail-size"></span></p>
-                    <p><strong>分享链接:</strong> <span id="detail-share-url"></span> <button id="copy-link-btn">复制</button></p>
-                </div>
-                <h4>整体进度</h4>
-                <div class="progress-container">
-                    <div class="progress-bar" id="detail-progress-bar"></div>
-                </div>
-                <p><span id="detail-completion"></span>% 完成 (<span id="detail-completed-peers"></span>/<span id="detail-total-peers"></span> 完成)</p>
-
-                <h4>文件列表</h4>
-                <ul class="file-list" id="detail-file-list"></ul>
-
-                <div class="button-group">
-                    <button id="detail-start-btn">启动分发</button>
-                    <button id="detail-pause-btn">暂停分发</button>
-                </div>
-            </div>
-
-            <h3>连接的客户端</h3>
-            <div class="peer-list" id="detail-peer-list"></div>
-        </div>
-
-        <a href="/" class="back-link">返回首页</a>
+        <button id="create-distribution-btn">创建分发任务</button>
     </div>
-    <script src="/static/js/teacher_seed.js"></script>
 
-    <script>
-        // 全局变量
-        let currentDistributionId = null;
-        let ws = null;
+    <div class="section" id="file-upload-section" style="display: none;">
+        <h2>上传文件</h2>
+        <div class="form-group">
+            <label for="file-upload">选择文件:</label>
+            <input type="file" id="file-upload">
+        </div>
+        <div class="form-group">
+            <label for="file-path">文件路径 (可选):</label>
+            <input type="text" id="file-path" placeholder="例如: 实验资料/python入门.pdf">
+        </div>
+        <div class="form-group">
+            <label for="file-priority">优先级 (0-10):</label>
+            <input type="number" id="file-priority" min="0" max="10" value="0">
+        </div>
+        <div class="progress-container" id="upload-progress-container" style="display: none;">
+            <div class="progress-bar" id="upload-progress-bar"></div>
+        </div>
+        <button id="upload-file-btn">上传文件</button>
+    </div>
 
-        // 当页面加载完成时执行
-        document.addEventListener('DOMContentLoaded', function() {
-            // 加载分发任务列表
-            loadDistributions();
+    <div class="section">
+        <h2>分发任务列表</h2>
+        <div id="distribution-list">
+            <div class="alert alert-info">加载中...</div>
+        </div>
+    </div>
 
-            // 注册事件处理器
-            document.getElementById('create-distribution-btn').addEventListener('click', createDistribution);
-            document.getElementById('upload-file-btn').addEventListener('click', uploadFile);
-            document.getElementById('detail-start-btn').addEventListener('click', startDistribution);
-            document.getElementById('detail-pause-btn').addEventListener('click', pauseDistribution);
-            document.getElementById('copy-link-btn').addEventListener('click', copyShareLink);
+    <div class="section" id="distribution-detail" style="display: none;">
+        <h2>分发任务详情</h2>
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title" id="detail-name"></h3>
+                <div>
+                    <span class="status" id="detail-status"></span>
+                </div>
+            </div>
+            <div>
+                <p><strong>创建时间:</strong> <span id="detail-created-at"></span></p>
+                <p><strong>总大小:</strong> <span id="detail-size"></span></p>
+                <p><strong>分享链接:</strong> <span id="detail-share-url"></span>
+                    <button id="copy-link-btn">复制</button>
+                </p>
+            </div>
+            <h4>整体进度</h4>
+            <div class="progress-container">
+                <div class="progress-bar" id="detail-progress-bar"></div>
+            </div>
+            <p><span id="detail-completion"></span>% 完成 (<span id="detail-completed-peers"></span>/<span
+                    id="detail-total-peers"></span> 完成)</p>
 
-            // 连接WebSocket
-            connectWebSocket();
-        });
+            <h4>文件列表</h4>
+            <ul class="file-list" id="detail-file-list"></ul>
 
-        // 连接WebSocket
-        function connectWebSocket() {
+            <div class="button-group">
+                <button id="detail-start-btn">启动分发</button>
+                <button id="detail-pause-btn">暂停分发</button>
+            </div>
+        </div>
+
+        <h3>连接的客户端</h3>
+        <div class="peer-list" id="detail-peer-list"></div>
+    </div>
+
+    <a href="/" class="back-link">返回首页</a>
+</div>
+
+<script>
+    // 定义TeacherSeed类，供teacher_seed.js使用
+    class TeacherSeed {
+        constructor() {
+            this.clientId = null;
+            this.peerId = null;
+            this.currentDistributionId = null;
+            this.ws = null;
+            this.peerConnections = {};  // 存储所有P2P连接
+            this.heartbeatInterval = null;
+            this.pieceBuffer = {};  // 已下载的分片缓存
+            this.fileData = {};     // 文件元数据
+        }
+
+        // 启动WebSocket连接
+        connect(distributionId) {
             // 创建WebSocket连接
             const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${wsProtocol}//${window.location.host}/ws/teacher`;
 
-            ws = new WebSocket(wsUrl);
+            this.currentDistributionId = distributionId;
 
-            ws.onopen = function() {
-                console.log('WebSocket connected');
+            this.ws = new WebSocket(wsUrl);
+
+            this.ws.onopen = () => {
+                console.log('TeacherSeed: WebSocket连接已建立');
                 showAlert('WebSocket连接已建立', 'info');
+
+                // 连接成功后注册为种子节点
+                this.announceAsSeed();
             };
 
-            ws.onmessage = function(event) {
+            this.ws.onmessage = (event) => {
                 const data = JSON.parse(event.data);
-                console.log('Received WebSocket message:', data);
+                console.log("TeacherSeed接收到WebSocket消息:", data);
 
                 if (data.type === 'welcome') {
-                    console.log('Connected as client:', data.client_id);
-                } else if (data.type === 'distribution_status_update') {
-                    // 刷新分发任务状态
-                    if (currentDistributionId === data.distribution_id) {
-                        loadDistributionDetails(currentDistributionId);
-                    }
-                    // 刷新分发任务列表
-                    loadDistributions();
+                    // 处理welcome消息
+                    this.clientId = data.client_id;
+                    console.log(`TeacherSeed: 已连接，客户端ID: ${this.clientId}`);
+                } else if (data.type === 'announce_success') {
+                    // 处理announce_success消息
+                    this.peerId = data.peer_id;
+                    console.log(`TeacherSeed: 成功注册为种子节点，Peer ID: ${this.peerId}`);
+                    this.startHeartbeat(); // 注册成功后启动心跳
+                    this.loadFilesAndRegisterPieces(this.currentDistributionId);
+                } else if (data.type === 'signaling') {
+                    // 处理WebRTC信令消息
+                    this.handleSignalingMessage(data.payload);
+                } else if (data.type === 'heartbeat') {
+                    // 处理心跳消息
+                    console.debug('TeacherSeed: 收到服务器心跳');
+                } else if (data.type === 'error') {
+                    console.error(`TeacherSeed: 错误: ${data.message}`);
                 }
             };
 
-            ws.onclose = function() {
-                console.log('WebSocket closed');
+            this.ws.onclose = () => {
+                console.log('TeacherSeed: WebSocket连接已关闭');
                 showAlert('WebSocket连接已关闭，将在5秒后重连', 'warning');
 
-                // 5秒后重连
-                setTimeout(connectWebSocket, 5000);
-            };
-
-            ws.onerror = function(error) {
-                console.error('WebSocket error:', error);
-                showAlert('WebSocket错误', 'error');
-            };
-        }
-
-        // 创建分发任务
-        async function createDistribution() {
-            const nameInput = document.getElementById('distribution-name');
-            const name = nameInput.value.trim();
-
-            if (!name) {
-                showAlert('请输入分发任务名称', 'warning');
-                return;
-            }
-
-            try {
-                const formData = new FormData();
-                formData.append('name', name);
-
-                const response = await fetch('/api/distributions', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    showAlert(`分发任务创建成功: ${name}`, 'success');
-                    nameInput.value = '';
-
-                    // 显示文件上传区域并设置当前分发任务ID
-                    document.getElementById('file-upload-section').style.display = 'block';
-                    currentDistributionId = data.distribution_id;
-
-                    // 刷新分发任务列表
-                    loadDistributions();
-
-                    // 加载分发任务详情
-                    loadDistributionDetails(data.distribution_id);
-                } else {
-                    showAlert(`创建分发任务失败: ${data.detail}`, 'error');
+                // 停止心跳
+                if (this.heartbeatInterval) {
+                    clearInterval(this.heartbeatInterval);
+                    this.heartbeatInterval = null;
                 }
-            } catch (error) {
-                console.error('创建分发任务出错:', error);
-                showAlert('创建分发任务出错', 'error');
-            }
+
+                // 5秒后重连
+                setTimeout(() => this.connect(distributionId), 5000);
+            };
+
+            this.ws.onerror = (error) => {
+                console.error('TeacherSeed: WebSocket错误:', error);
+            };
         }
 
-        // 上传文件
-        async function uploadFile() {
-            if (!currentDistributionId) {
-                showAlert('请先创建分发任务', 'warning');
+        // 作为种子节点注册
+        announceAsSeed() {
+            if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.currentDistributionId) {
+                console.error('TeacherSeed: WebSocket未连接或缺少分发任务ID');
                 return;
             }
 
-            const fileInput = document.getElementById('file-upload');
-            const pathInput = document.getElementById('file-path');
-            const priorityInput = document.getElementById('file-priority');
+            // 获取本地IP和端口（在浏览器环境中，我们无法获取真实IP）
+            const port = Math.floor(Math.random() * 10000) + 50000;
 
-            if (!fileInput.files || fileInput.files.length === 0) {
-                showAlert('请选择要上传的文件', 'warning');
-                return;
-            }
+            this.ws.send(JSON.stringify({
+                type: 'announce',
+                distribution_id: this.currentDistributionId,
+                ip_address: window.location.hostname || '127.0.0.1',
+                port: port,
+                user_agent: navigator.userAgent,
+                is_seed: true  // 标记为种子节点
+            }));
 
-            const file = fileInput.files[0];
-            const path = pathInput.value.trim() || file.name;
-            const priority = priorityInput.value || 0;
-
-            // 显示进度条
-            const progressContainer = document.getElementById('upload-progress-container');
-            const progressBar = document.getElementById('upload-progress-bar');
-            progressContainer.style.display = 'block';
-            progressBar.style.width = '0%';
-
-            try {
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('path', path);
-                formData.append('priority', priority);
-
-                // 使用fetch API上传文件，并跟踪进度
-                const xhr = new XMLHttpRequest();
-                xhr.open('POST', `/api/distributions/${currentDistributionId}/files`, true);
-
-                xhr.upload.onprogress = function(event) {
-                    if (event.lengthComputable) {
-                        const percent = Math.round((event.loaded / event.total) * 100);
-                        progressBar.style.width = `${percent}%`;
-                    }
-                };
-
-                xhr.onload = function() {
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        const data = JSON.parse(xhr.responseText);
-                        showAlert('文件上传成功', 'success');
-
-                        // 清空输入
-                        fileInput.value = '';
-                        pathInput.value = '';
-                        priorityInput.value = 0;
-
-                        // 重新加载分发任务详情
-                        loadDistributions()
-                        loadDistributionDetails(currentDistributionId);
-                    } else {
-                        const data = JSON.parse(xhr.responseText);
-                        showAlert(`文件上传失败: ${data.detail}`, 'error');
-                    }
-
-                    // 隐藏进度条
-                    setTimeout(() => {
-                        progressContainer.style.display = 'none';
-                    }, 1000);
-                };
-
-                xhr.onerror = function() {
-                    showAlert('文件上传出错', 'error');
-                    progressContainer.style.display = 'none';
-                };
-
-                xhr.send(formData);
-            } catch (error) {
-                console.error('上传文件出错:', error);
-                showAlert('上传文件出错', 'error');
-                progressContainer.style.display = 'none';
-            }
+            console.log('TeacherSeed: 已发送seed announce请求');
         }
 
-        // 加载分发任务列表
-        async function loadDistributions() {
+        // 启动心跳
+        startHeartbeat() {
+            if (this.heartbeatInterval) {
+                clearInterval(this.heartbeatInterval);
+            }
+
+            this.heartbeatInterval = setInterval(() => {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN && this.peerId) {
+                    this.ws.send(JSON.stringify({
+                        type: 'heartbeat',
+                        peer_id: this.peerId,
+                        distribution_id: this.currentDistributionId
+                    }));
+                }
+            }, 30000); // 30秒一次心跳
+        }
+
+        // 加载文件并注册分片
+        async loadFilesAndRegisterPieces(distributionId) {
             try {
-                const response = await fetch('/api/distributions');
-                const distributions = await response.json();
+                console.log(`TeacherSeed: 加载分发任务 ${distributionId} 的文件信息`);
+                const response = await fetch(`/api/distributions/${distributionId}`);
+                const distribution = await response.json();
 
-                const listElement = document.getElementById('distribution-list');
-
-                if (distributions.length === 0) {
-                    listElement.innerHTML = '<div class="alert alert-info">没有分发任务，请创建新任务</div>';
+                if (!distribution || !distribution.files) {
+                    console.error('TeacherSeed: 分发任务没有文件信息');
                     return;
                 }
 
-                // 渲染分发任务列表
-                listElement.innerHTML = '';
-                distributions.forEach(dist => {
-                    const card = document.createElement('div');
-                    card.className = 'card';
+                // 初始化文件数据
+                distribution.files.forEach(file => {
+                    this.fileData[file.id] = {
+                        id: file.id,
+                        path: file.path,
+                        size: file.size,
+                        pieceCount: file.piece_count || 0
+                    };
+                });
 
-                    const statusClass = dist.status === 'active' ? 'status-active' : 'status-paused';
-                    const statusText = dist.status === 'active' ? '活动' : '暂停';
+                console.log('TeacherSeed: 已加载文件信息', this.fileData);
 
-                    card.innerHTML = `
+                // 获取所有文件的分片信息
+                for (const fileId in this.fileData) {
+                    await this.loadFilePieces(fileId);
+                }
+            } catch (error) {
+                console.error('TeacherSeed: 加载文件信息失败:', error);
+            }
+        }
+
+        // 加载文件分片信息
+        async loadFilePieces(fileId) {
+            try {
+                console.log(`TeacherSeed: 加载文件 ${fileId} 的分片信息`);
+                const response = await fetch(`/api/files/${fileId}/pieces`);
+                const pieces = await response.json();
+
+                if (!pieces || !Array.isArray(pieces)) {
+                    console.error(`TeacherSeed: 文件 ${fileId} 没有分片信息`);
+                    return;
+                }
+
+                console.log(`TeacherSeed: 文件 ${fileId} 有 ${pieces.length} 个分片`);
+
+                // 向服务器注册所有分片
+                pieces.forEach(piece => {
+                    this.registerPieceOwnership(piece.id);
+                });
+            } catch (error) {
+                console.error(`TeacherSeed: 加载文件分片信息失败: ${error}`);
+            }
+        }
+
+        // 注册分片所有权
+        registerPieceOwnership(pieceId) {
+            if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+                console.error('TeacherSeed: WebSocket未连接，无法注册分片所有权');
+                return;
+            }
+
+            this.ws.send(JSON.stringify({
+                type: 'update_piece',
+                piece_id: pieceId,
+                has_piece: true
+            }));
+
+            console.log(`TeacherSeed: 已注册分片所有权 ${pieceId}`);
+        }
+
+        // 处理信令消息
+        handleSignalingMessage(payload) {
+            if (!payload || !payload.type) return;
+
+            console.log(`TeacherSeed: 收到信令消息: ${payload.type} 从节点 ${payload.source}`);
+
+            const sourcePeerId = payload.source;
+
+            if (!sourcePeerId) {
+                console.error('TeacherSeed: 信令消息没有源节点ID');
+                return;
+            }
+
+            // 如果这是一个新的对等连接请求，初始化一个新的RTCPeerConnection
+            if (!this.peerConnections[sourcePeerId]) {
+                this.initializePeerConnection(sourcePeerId);
+            }
+
+            const peerConnection = this.peerConnections[sourcePeerId].connection;
+
+            if (payload.type === 'offer') {
+                this.handleOfferMessage(peerConnection, payload, sourcePeerId);
+            } else if (payload.type === 'answer') {
+                this.handleAnswerMessage(peerConnection, payload);
+            } else if (payload.type === 'ice_candidate') {
+                this.handleICECandidateMessage(peerConnection, payload);
+            }
+        }
+
+        // 初始化对等连接
+        initializePeerConnection(peerId) {
+            console.log(`TeacherSeed: 初始化与节点 ${peerId} 的连接`);
+
+            // 配置ICE服务器
+            const iceServers = [
+                {urls: 'stun:stun.l.google.com:19302'}
+            ];
+
+            // 创建新的RTCPeerConnection
+            const peerConnection = new RTCPeerConnection({iceServers});
+
+            // 存储连接状态
+            this.peerConnections[peerId] = {
+                connection: peerConnection,
+                id: peerId,
+                connected: false,
+                status: 'connecting',
+                lastActivity: Date.now(),
+                dataChannel: null
+            };
+
+            // 处理ICE候选
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    console.log(`TeacherSeed: 向节点 ${peerId} 发送ICE候选`);
+                    this.sendSignalingMessage({
+                        type: 'ice_candidate',
+                        candidate: event.candidate,
+                        target: peerId,
+                        source: this.peerId
+                    });
+                }
+            };
+
+            // 监听连接状态变化
+            peerConnection.onconnectionstatechange = () => {
+                console.log(`TeacherSeed: 与节点 ${peerId} 的连接状态变为 ${peerConnection.connectionState}`);
+
+                if (peerConnection.connectionState === 'connected') {
+                    this.peerConnections[peerId].connected = true;
+                    this.peerConnections[peerId].status = 'connected';
+                    console.log(`TeacherSeed: 与节点 ${peerId} 建立连接成功！`);
+                    updatePeerListUI(); // 更新UI
+                } else if (peerConnection.connectionState === 'disconnected' ||
+                    peerConnection.connectionState === 'failed') {
+                    this.peerConnections[peerId].connected = false;
+                    this.peerConnections[peerId].status = 'disconnected';
+                    console.log(`TeacherSeed: 与节点 ${peerId} 的连接断开或失败`);
+                    updatePeerListUI(); // 更新UI
+                }
+            };
+
+            // 处理数据通道
+            peerConnection.ondatachannel = (event) => {
+                console.log(`TeacherSeed: 收到来自节点 ${peerId} 的数据通道`);
+                this.setupDataChannel(event.channel, peerId);
+            };
+
+            return peerConnection;
+        }
+
+        // 处理offer消息
+        handleOfferMessage(peerConnection, payload, sourcePeerId) {
+            console.log(`TeacherSeed: 处理来自节点 ${sourcePeerId} 的offer`);
+
+            // 设置远程描述
+            peerConnection.setRemoteDescription(new RTCSessionDescription(payload.offer))
+                .then(() => {
+                    // 创建answer
+                    return peerConnection.createAnswer();
+                })
+                .then(answer => {
+                    // 设置本地描述
+                    return peerConnection.setLocalDescription(answer);
+                })
+                .then(() => {
+                    // 发送answer到源节点
+                    this.sendSignalingMessage({
+                        type: 'answer',
+                        answer: peerConnection.localDescription,
+                        target: sourcePeerId,
+                        source: this.peerId
+                    });
+                    console.log(`TeacherSeed: 已发送answer给节点 ${sourcePeerId}`);
+                })
+                .catch(error => {
+                    console.error(`TeacherSeed: 处理offer失败: ${error}`);
+                });
+        }
+
+        // 处理answer消息
+        handleAnswerMessage(peerConnection, payload) {
+            console.log(`TeacherSeed: 处理来自节点 ${payload.source} 的answer`);
+
+            peerConnection.setRemoteDescription(new RTCSessionDescription(payload.answer))
+                .catch(error => {
+                    console.error(`TeacherSeed: 设置远程描述失败: ${error}`);
+                });
+        }
+
+        // 处理ICE候选消息
+        handleICECandidateMessage(peerConnection, payload) {
+            console.log(`TeacherSeed: 处理来自节点 ${payload.source} 的ICE候选`);
+
+            try {
+                peerConnection.addIceCandidate(new RTCIceCandidate(payload.candidate))
+                    .catch(error => {
+                        console.error(`TeacherSeed: 添加ICE候选失败: ${error}`);
+                    });
+            } catch (e) {
+                console.error(`TeacherSeed: 处理ICE候选出错: ${e}`);
+            }
+        }
+
+        // 设置数据通道
+        setupDataChannel(dataChannel, peerId) {
+            if (!this.peerConnections[peerId]) {
+                this.peerConnections[peerId] = {
+                    connection: null,
+                    id: peerId,
+                    connected: false,
+                    status: 'connecting',
+                    lastActivity: Date.now(),
+                    dataChannel: null
+                };
+            }
+            this.peerConnections[peerId].dataChannel = dataChannel;
+
+            dataChannel.onopen = () => {
+                console.log(`TeacherSeed: 与节点 ${peerId} 的数据通道已打开`);
+                this.peerConnections[peerId].connected = true;
+                this.peerConnections[peerId].status = 'connected';
+                updatePeerListUI(); // 更新UI
+            };
+
+            dataChannel.onclose = () => {
+                console.log(`TeacherSeed: 与节点 ${peerId} 的数据通道已关闭`);
+                this.peerConnections[peerId].connected = false;
+                this.peerConnections[peerId].status = 'disconnected';
+                updatePeerListUI(); // 更新UI
+            };
+
+            dataChannel.onerror = (error) => {
+                console.error(`TeacherSeed: 数据通道错误: ${error}`);
+            };
+
+            dataChannel.onmessage = (event) => {
+                this.handleDataChannelMessage(event, peerId);
+            };
+        }
+
+        // 发送信令消息
+        sendSignalingMessage(message) {
+            if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+                console.error('TeacherSeed: WebSocket未连接，无法发送信令消息');
+                return;
+            }
+
+            this.ws.send(JSON.stringify({
+                type: 'signaling',
+                payload: message
+            }));
+
+            console.log(`TeacherSeed: 发送信令消息: ${message.type} 给节点 ${message.target}`);
+        }
+
+        // 处理数据通道消息
+        handleDataChannelMessage(event, sourcePeerId) {
+            // 更新最后活动时间
+            if (this.peerConnections[sourcePeerId]) {
+                this.peerConnections[sourcePeerId].lastActivity = Date.now();
+            }
+
+            // 处理文本消息
+            if (typeof event.data === 'string') {
+                try {
+                    const message = JSON.parse(event.data);
+
+                    if (message.type === 'piece_request') {
+                        this.handlePieceRequest(message, sourcePeerId);
+                    } else {
+                        console.log(`TeacherSeed: 收到未知类型消息: ${message.type}`);
+                    }
+                } catch (e) {
+                    console.error(`TeacherSeed: 解析消息失败: ${e}`);
+                }
+            }
+        }
+
+        // 处理分片请求
+        async handlePieceRequest(message, sourcePeerId) {
+            const pieceId = message.piece_id;
+            const fileId = message.file_id;
+
+            console.log(`TeacherSeed: 收到来自节点 ${sourcePeerId} 的分片请求: ${pieceId} (文件ID: ${fileId})`);
+
+            try {
+                // 检查是否已经缓存了分片数据
+                if (this.pieceBuffer[pieceId]) {
+                    this.sendPiece(pieceId, fileId, sourcePeerId);
+                    return;
+                }
+
+                // 如果没有缓存，从API获取分片数据
+                console.log(`TeacherSeed: 正在从服务器获取分片数据: ${pieceId}`);
+                const response = await fetch(`/api/pieces/${pieceId}/data`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/octet-stream'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`获取分片失败: ${response.status} ${response.statusText}`);
+                }
+
+                // 获取二进制数据
+                const arrayBuffer = await response.arrayBuffer();
+                console.log(`TeacherSeed: 成功获取分片数据: ${pieceId}, 大小: ${arrayBuffer.byteLength} 字节`);
+
+                // 缓存分片数据
+                this.pieceBuffer[pieceId] = arrayBuffer;
+
+                // 发送分片数据
+                this.sendPiece(pieceId, fileId, sourcePeerId);
+            } catch (error) {
+                console.error(`TeacherSeed: 处理分片请求失败: ${error}`);
+
+                // 通知请求方分片不可用
+                const dataChannel = this.peerConnections[sourcePeerId]?.dataChannel;
+                if (dataChannel && dataChannel.readyState === 'open') {
+                    dataChannel.send(JSON.stringify({
+                        type: 'piece_not_available',
+                        piece_id: pieceId
+                    }));
+                }
+            }
+        }
+
+// 确保发送分片的方法正确
+        sendPiece(pieceId, fileId, peerId) {
+            const dataChannel = this.peerConnections[peerId]?.dataChannel;
+            const pieceData = this.pieceBuffer[pieceId];
+
+            if (!dataChannel || dataChannel.readyState !== 'open') {
+                console.error(`TeacherSeed: 数据通道未就绪，无法发送分片 ${pieceId}`);
+                return;
+            }
+
+            if (!pieceData) {
+                console.error(`TeacherSeed: 没有分片 ${pieceId} 的数据`);
+                this.sendPieceUnavailable(pieceId, peerId);
+                return;
+            }
+
+            console.log(`TeacherSeed: 发送分片数据 ${pieceId} 到节点 ${peerId}, 大小: ${pieceData.byteLength} 字节`);
+
+            // 发送分片头部信息
+            dataChannel.send(JSON.stringify({
+                type: 'piece_response_header',
+                piece_id: pieceId,
+                file_id: fileId,
+                size: pieceData.byteLength
+            }));
+
+            // 等待一小段时间再发送数据，确保头部信息已被处理
+            setTimeout(() => {
+                try {
+                    // 发送二进制数据
+                    dataChannel.send(pieceData);
+                    console.log(`TeacherSeed: 分片 ${pieceId} 数据已发送完成`);
+                } catch (e) {
+                    console.error(`TeacherSeed: 发送分片数据失败: ${e}`);
+                }
+            }, 10);
+        }
+
+        // 发送分片数据
+        sendPiece(pieceId, fileId, peerId) {
+            const dataChannel = this.peerConnections[peerId]?.dataChannel;
+
+            if (!dataChannel || dataChannel.readyState !== 'open') {
+                console.error(`TeacherSeed: 数据通道未就绪，无法发送分片`);
+                return;
+            }
+
+            const pieceData = this.pieceBuffer[pieceId];
+            if (!pieceData) {
+                this.sendPieceUnavailable(pieceId, peerId);
+                return;
+            }
+
+            // 发送分片头部信息
+            dataChannel.send(JSON.stringify({
+                type: 'piece_response_header',
+                piece_id: pieceId,
+                file_id: fileId,
+                size: pieceData.byteLength
+            }));
+
+            // 发送分片数据
+            dataChannel.send(pieceData);
+
+            console.log(`TeacherSeed: 已将分片 ${pieceId} 发送给节点 ${peerId}`);
+        }
+
+        // 发送分片不可用消息
+        sendPieceUnavailable(pieceId, peerId) {
+            const dataChannel = this.peerConnections[peerId]?.dataChannel;
+
+            if (dataChannel && dataChannel.readyState === 'open') {
+                dataChannel.send(JSON.stringify({
+                    type: 'piece_not_available',
+                    piece_id: pieceId
+                }));
+
+                console.log(`TeacherSeed: 通知节点 ${peerId} 分片 ${pieceId} 不可用`);
+            }
+        }
+    }
+
+    // 全局变量
+    let currentDistributionId = null;
+    let ws = null;
+    let teacherSeed = null;
+
+    // 当页面加载完成时执行
+    document.addEventListener('DOMContentLoaded', function () {
+        // 创建TeacherSeed实例
+        teacherSeed = new TeacherSeed();
+
+        // 加载分发任务列表
+        loadDistributions();
+
+        // 注册事件处理器
+        document.getElementById('create-distribution-btn').addEventListener('click', createDistribution);
+        document.getElementById('upload-file-btn').addEventListener('click', uploadFile);
+        document.getElementById('detail-start-btn').addEventListener('click', startDistribution);
+        document.getElementById('detail-pause-btn').addEventListener('click', pauseDistribution);
+        document.getElementById('copy-link-btn').addEventListener('click', copyShareLink);
+
+        // 连接WebSocket
+        connectWebSocket();
+    });
+
+    // 连接WebSocket
+    function connectWebSocket() {
+        // 创建WebSocket连接
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//${window.location.host}/ws/teacher`;
+
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = function () {
+            console.log('WebSocket connected');
+            showAlert('WebSocket连接已建立', 'info');
+        };
+
+        ws.onmessage = function (event) {
+            const data = JSON.parse(event.data);
+            console.log('Received WebSocket message:', data);
+
+            if (data.type === 'welcome') {
+                console.log('Connected as client:', data.client_id);
+            } else if (data.type === 'distribution_status_update') {
+                // 刷新分发任务状态
+                if (currentDistributionId === data.distribution_id) {
+                    loadDistributionDetails(currentDistributionId);
+                }
+                // 刷新分发任务列表
+                loadDistributions();
+            }
+        };
+
+        ws.onclose = function () {
+            console.log('WebSocket closed');
+            showAlert('WebSocket连接已关闭，将在5秒后重连', 'warning');
+
+            // 5秒后重连
+            setTimeout(connectWebSocket, 5000);
+        };
+
+        ws.onerror = function (error) {
+            console.error('WebSocket error:', error);
+            showAlert('WebSocket错误', 'error');
+        };
+    }
+
+    // 创建分发任务
+    async function createDistribution() {
+        const nameInput = document.getElementById('distribution-name');
+        const name = nameInput.value.trim();
+
+        if (!name) {
+            showAlert('请输入分发任务名称', 'warning');
+            return;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('name', name);
+
+            const response = await fetch('/api/distributions', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                showAlert(`分发任务创建成功: ${name}`, 'success');
+                nameInput.value = '';
+
+                // 显示文件上传区域并设置当前分发任务ID
+                document.getElementById('file-upload-section').style.display = 'block';
+                currentDistributionId = data.distribution_id;
+
+                // 刷新分发任务列表
+                loadDistributions();
+
+                // 加载分发任务详情
+                loadDistributionDetails(data.distribution_id);
+            } else {
+                showAlert(`创建分发任务失败: ${data.detail}`, 'error');
+            }
+        } catch (error) {
+            console.error('创建分发任务出错:', error);
+            showAlert('创建分发任务出错', 'error');
+        }
+    }
+
+    // 上传文件
+    async function uploadFile() {
+        if (!currentDistributionId) {
+            showAlert('请先创建分发任务', 'warning');
+            return;
+        }
+
+        const fileInput = document.getElementById('file-upload');
+        const pathInput = document.getElementById('file-path');
+        const priorityInput = document.getElementById('file-priority');
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+            showAlert('请选择要上传的文件', 'warning');
+            return;
+        }
+
+        const file = fileInput.files[0];
+        const path = pathInput.value.trim() || file.name;
+        const priority = priorityInput.value || 0;
+
+        // 显示进度条
+        const progressContainer = document.getElementById('upload-progress-container');
+        const progressBar = document.getElementById('upload-progress-bar');
+        progressContainer.style.display = 'block';
+        progressBar.style.width = '0%';
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('path', path);
+            formData.append('priority', priority);
+
+            // 使用fetch API上传文件，并跟踪进度
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', `/api/distributions/${currentDistributionId}/files`, true);
+
+            xhr.upload.onprogress = function (event) {
+                if (event.lengthComputable) {
+                    const percent = Math.round((event.loaded / event.total) * 100);
+                    progressBar.style.width = `${percent}%`;
+                }
+            };
+
+            xhr.onload = function () {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    const data = JSON.parse(xhr.responseText);
+                    showAlert('文件上传成功', 'success');
+
+                    // 清空输入
+                    fileInput.value = '';
+                    pathInput.value = '';
+                    priorityInput.value = 0;
+
+                    // 重新加载分发任务详情
+                    loadDistributions()
+                    loadDistributionDetails(currentDistributionId);
+                } else {
+                    const data = JSON.parse(xhr.responseText);
+                    showAlert(`文件上传失败: ${data.detail}`, 'error');
+                }
+
+                // 隐藏进度条
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                }, 1000);
+            };
+
+            xhr.onerror = function () {
+                showAlert('文件上传出错', 'error');
+                progressContainer.style.display = 'none';
+            };
+
+            xhr.send(formData);
+        } catch (error) {
+            console.error('上传文件出错:', error);
+            showAlert('上传文件出错', 'error');
+            progressContainer.style.display = 'none';
+        }
+    }
+
+    // 加载分发任务列表
+    async function loadDistributions() {
+        try {
+            const response = await fetch('/api/distributions');
+            const distributions = await response.json();
+
+            const listElement = document.getElementById('distribution-list');
+
+            if (distributions.length === 0) {
+                listElement.innerHTML = '<div class="alert alert-info">没有分发任务，请创建新任务</div>';
+                return;
+            }
+
+            // 渲染分发任务列表
+            listElement.innerHTML = '';
+            distributions.forEach(dist => {
+                const card = document.createElement('div');
+                card.className = 'card';
+
+                const statusClass = dist.status === 'active' ? 'status-active' : 'status-paused';
+                const statusText = dist.status === 'active' ? '活动' : '暂停';
+
+                card.innerHTML = `
                         <div class="card-header">
                             <h3 class="card-title">${dist.name}</h3>
                             <div>
@@ -463,190 +1055,238 @@
                         <button class="view-details-btn" data-id="${dist.id}">查看详情</button>
                     `;
 
-                    listElement.appendChild(card);
-                });
+                listElement.appendChild(card);
+            });
 
-                // 添加查看详情按钮的事件处理器
-                document.querySelectorAll('.view-details-btn').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        const distributionId = this.getAttribute('data-id');
-                        loadDistributionDetails(distributionId);
-                    });
+            // 添加查看详情按钮的事件处理器
+            document.querySelectorAll('.view-details-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const distributionId = this.getAttribute('data-id');
+                    loadDistributionDetails(distributionId);
                 });
-            } catch (error) {
-                console.error('加载分发任务列表出错:', error);
-                showAlert('加载分发任务列表出错', 'error');
-            }
+            });
+        } catch (error) {
+            console.error('加载分发任务列表出错:', error);
+            showAlert('加载分发任务列表出错', 'error');
         }
+    }
 
-        // 加载分发任务详情
-        async function loadDistributionDetails(distributionId) {
-            try {
-                const response = await fetch(`/api/distributions/${distributionId}`);
-                const distribution = await response.json();
+    // 加载分发任务详情
+    async function loadDistributionDetails(distributionId) {
+        try {
+            const response = await fetch(`/api/distributions/${distributionId}`);
+            const distribution = await response.json();
 
-                // 保存当前分发任务ID
-                currentDistributionId = distributionId;
+            // 保存当前分发任务ID
+            currentDistributionId = distributionId;
 
-                // 显示详情区域
-                document.getElementById('distribution-detail').style.display = 'block';
+            // 显示详情区域
+            document.getElementById('distribution-detail').style.display = 'block';
 
-                // 显示文件上传区域
-                document.getElementById('file-upload-section').style.display = 'block';
+            // 显示文件上传区域
+            document.getElementById('file-upload-section').style.display = 'block';
 
-                // 填充基本信息
-                document.getElementById('detail-name').textContent = distribution.name;
-                document.getElementById('detail-created-at').textContent = new Date(distribution.created_at).toLocaleString();
-                document.getElementById('detail-size').textContent = formatBytes(distribution.total_size || 0);
+            // 填充基本信息
+            document.getElementById('detail-name').textContent = distribution.name;
+            document.getElementById('detail-created-at').textContent = new Date(distribution.created_at).toLocaleString();
+            document.getElementById('detail-size').textContent = formatBytes(distribution.total_size || 0);
 
-                // 状态
-                const statusElement = document.getElementById('detail-status');
-                statusElement.textContent = distribution.status === 'active' ? '活动' : '暂停';
-                statusElement.className = `status ${distribution.status === 'active' ? 'status-active' : 'status-paused'}`;
+            // 状态
+            const statusElement = document.getElementById('detail-status');
+            statusElement.textContent = distribution.status === 'active' ? '活动' : '暂停';
+            statusElement.className = `status ${distribution.status === 'active' ? 'status-active' : 'status-paused'}`;
 
-                // 分享链接
-                const shareUrl = `${window.location.protocol}//${window.location.host}/join/${distributionId}`;
-                document.getElementById('detail-share-url').textContent = shareUrl;
+            // 分享链接
+            const shareUrl = `${window.location.protocol}//${window.location.host}/join/${distributionId}`;
+            document.getElementById('detail-share-url').textContent = shareUrl;
 
-                // 进度和节点信息
-                const stats = distribution.stats || { active_peers: 0, completed_peers: 0, overall_completion: 0 };
-                document.getElementById('detail-progress-bar').style.width = `${Math.round(stats.overall_completion * 100)}%`;
-                document.getElementById('detail-completion').textContent = Math.round(stats.overall_completion * 100);
-                document.getElementById('detail-completed-peers').textContent = stats.completed_peers;
-                document.getElementById('detail-total-peers').textContent = stats.active_peers;
+            // 进度和节点信息
+            const stats = distribution.stats || {active_peers: 0, completed_peers: 0, overall_completion: 0};
+            document.getElementById('detail-progress-bar').style.width = `${Math.round(stats.overall_completion * 100)}%`;
+            document.getElementById('detail-completion').textContent = Math.round(stats.overall_completion * 100);
+            document.getElementById('detail-completed-peers').textContent = stats.completed_peers;
+            document.getElementById('detail-total-peers').textContent = stats.active_peers;
 
-                // 文件列表
-                const fileListElement = document.getElementById('detail-file-list');
-                fileListElement.innerHTML = '';
+            // 文件列表
+            const fileListElement = document.getElementById('detail-file-list');
+            fileListElement.innerHTML = '';
 
-                if (distribution.files && distribution.files.length > 0) {
-                    distribution.files.forEach(file => {
-                        const fileItem = document.createElement('li');
-                        fileItem.className = 'file-item';
-                        fileItem.innerHTML = `
+            if (distribution.files && distribution.files.length > 0) {
+                distribution.files.forEach(file => {
+                    const fileItem = document.createElement('li');
+                    fileItem.className = 'file-item';
+                    fileItem.innerHTML = `
                             <div><strong>${file.path}</strong></div>
                             <div>大小: ${formatBytes(file.size)} | 分片数: ${file.piece_count}</div>
                         `;
-                        fileListElement.appendChild(fileItem);
-                    });
-                } else {
-                    fileListElement.innerHTML = '<li class="file-item">没有文件</li>';
-                }
-
-                // 更新节点列表 (未实现)
-                document.getElementById('detail-peer-list').innerHTML = '<div class="alert alert-info">没有连接的客户端</div>';
-            } catch (error) {
-                console.error('加载分发任务详情出错:', error);
-                showAlert('加载分发任务详情出错', 'error');
-            }
-        }
-
-        // 启动分发任务
-        async function startDistribution() {
-            if (!currentDistributionId) {
-                showAlert('请先选择分发任务', 'warning');
-                return;
-            }
-            registerAsSeed(currentDistributionId)
-
-            try {
-                const response = await fetch(`/api/distributions/${currentDistributionId}/start`, {
-                    method: 'POST'
+                    fileListElement.appendChild(fileItem);
                 });
+            } else {
+                fileListElement.innerHTML = '<li class="file-item">没有文件</li>';
+            }
 
-                const data = await response.json();
+            // 更新节点列表UI
+            updatePeerListUI();
+        } catch (error) {
+            console.error('加载分发任务详情出错:', error);
+            showAlert('加载分发任务详情出错', 'error');
+        }
+    }
 
-                if (response.ok) {
-                    showAlert('分发任务已启动', 'success');
-                    loadDistributionDetails(currentDistributionId);
+    // 更新节点列表UI
+    function updatePeerListUI() {
+        const peerListElement = document.getElementById('detail-peer-list');
+
+        // 如果没有种子节点实例或未连接，显示提示
+        if (!teacherSeed || !teacherSeed.peerConnections) {
+            peerListElement.innerHTML = '<div class="alert alert-info">没有连接的客户端</div>';
+            return;
+        }
+
+        const peerConnections = teacherSeed.peerConnections;
+        const peerIds = Object.keys(peerConnections);
+
+        if (peerIds.length === 0) {
+            peerListElement.innerHTML = '<div class="alert alert-info">没有连接的客户端</div>';
+            return;
+        }
+
+        // 渲染节点列表
+        peerListElement.innerHTML = '';
+        peerIds.forEach(peerId => {
+            const peerInfo = peerConnections[peerId];
+            const statusClass = peerInfo.connected ? 'status-connected' :
+                (peerInfo.status === 'connecting' ? 'status-connecting' : 'status-disconnected');
+            const statusText = peerInfo.connected ? '已连接' :
+                (peerInfo.status === 'connecting' ? '连接中' : '已断开');
+
+            const peerItem = document.createElement('div');
+            peerItem.className = 'peer-item';
+            peerItem.innerHTML = `
+                    <div>
+                        <span class="connection-status ${statusClass}"></span>
+                        <strong>节点ID: ${peerId.substr(0, 8)}...</strong>
+                    </div>
+                    <div>状态: ${statusText} | 最后活动: ${new Date(peerInfo.lastActivity).toLocaleTimeString()}</div>
+                `;
+
+            peerListElement.appendChild(peerItem);
+        });
+    }
+
+    // 启动分发任务
+    async function startDistribution() {
+        if (!currentDistributionId) {
+            showAlert('请先选择分发任务', 'warning');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/distributions/${currentDistributionId}/start`, {
+                method: 'POST'
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                showAlert('分发任务已启动', 'success');
+                loadDistributionDetails(currentDistributionId);
+
+                // 启动种子节点
+                if (teacherSeed) {
+                    teacherSeed.connect(currentDistributionId);
                 } else {
-                    showAlert(`启动分发任务失败: ${data.detail}`, 'error');
+                    teacherSeed = new TeacherSeed();
+                    teacherSeed.connect(currentDistributionId);
                 }
-            } catch (error) {
-                console.error('启动分发任务出错:', error);
-                showAlert('启动分发任务出错', 'error');
+            } else {
+                showAlert(`启动分发任务失败: ${data.detail}`, 'error');
             }
+        } catch (error) {
+            console.error('启动分发任务出错:', error);
+            showAlert('启动分发任务出错', 'error');
+        }
+    }
+
+    // 暂停分发任务
+    async function pauseDistribution() {
+        if (!currentDistributionId) {
+            showAlert('请先选择分发任务', 'warning');
+            return;
         }
 
-        // 暂停分发任务
-        async function pauseDistribution() {
-            if (!currentDistributionId) {
-                showAlert('请先选择分发任务', 'warning');
-                return;
+        try {
+            const response = await fetch(`/api/distributions/${currentDistributionId}/pause`, {
+                method: 'POST'
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                showAlert('分发任务已暂停', 'success');
+                loadDistributionDetails(currentDistributionId);
+            } else {
+                showAlert(`暂停分发任务失败: ${data.detail}`, 'error');
             }
+        } catch (error) {
+            console.error('暂停分发任务出错:', error);
+            showAlert('暂停分发任务出错', 'error');
+        }
+    }
 
-            try {
-                const response = await fetch(`/api/distributions/${currentDistributionId}/pause`, {
-                    method: 'POST'
-                });
+    // 复制分享链接
+    function copyShareLink() {
+        const shareUrl = document.getElementById('detail-share-url').textContent;
 
-                const data = await response.json();
-
-                if (response.ok) {
-                    showAlert('分发任务已暂停', 'success');
-                    loadDistributionDetails(currentDistributionId);
-                } else {
-                    showAlert(`暂停分发任务失败: ${data.detail}`, 'error');
-                }
-            } catch (error) {
-                console.error('暂停分发任务出错:', error);
-                showAlert('暂停分发任务出错', 'error');
-            }
+        if (!shareUrl) {
+            return;
         }
 
-        // 复制分享链接
-        function copyShareLink() {
-            const shareUrl = document.getElementById('detail-share-url').textContent;
+        // 创建临时输入框
+        const tempInput = document.createElement('input');
+        tempInput.style.position = 'absolute';
+        tempInput.style.left = '-1000px';
+        tempInput.value = shareUrl;
+        document.body.appendChild(tempInput);
 
-            if (!shareUrl) {
-                return;
-            }
+        // 选择并复制文本
+        tempInput.select();
+        document.execCommand('copy');
 
-            // 创建临时输入框
-            const tempInput = document.createElement('input');
-            tempInput.style.position = 'absolute';
-            tempInput.style.left = '-1000px';
-            tempInput.value = shareUrl;
-            document.body.appendChild(tempInput);
+        // 删除临时输入框
+        document.body.removeChild(tempInput);
 
-            // 选择并复制文本
-            tempInput.select();
-            document.execCommand('copy');
+        showAlert('分享链接已复制到剪贴板', 'success');
+    }
 
-            // 删除临时输入框
-            document.body.removeChild(tempInput);
+    // 显示提示消息
+    function showAlert(message, type) {
+        const alertsContainer = document.getElementById('alerts');
 
-            showAlert('分享链接已复制到剪贴板', 'success');
-        }
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type}`;
+        alert.textContent = message;
 
-        // 显示提示消息
-        function showAlert(message, type) {
-            const alertsContainer = document.getElementById('alerts');
+        alertsContainer.appendChild(alert);
 
-            const alert = document.createElement('div');
-            alert.className = `alert alert-${type}`;
-            alert.textContent = message;
+        // 3秒后自动移除
+        setTimeout(() => {
+            alert.remove();
+        }, 3000);
+    }
 
-            alertsContainer.appendChild(alert);
+    // 格式化字节大小
+    function formatBytes(bytes, decimals = 2) {
+        if (bytes === 0) return '0 Bytes';
 
-            // 3秒后自动移除
-            setTimeout(() => {
-                alert.remove();
-            }, 3000);
-        }
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
 
-        // 格式化字节大小
-        function formatBytes(bytes, decimals = 2) {
-            if (bytes === 0) return '0 Bytes';
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
 
-            const k = 1024;
-            const dm = decimals < 0 ? 0 : decimals;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-        }
-    </script>
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+</script>
 </body>
 </html>
