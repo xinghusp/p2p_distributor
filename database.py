@@ -55,8 +55,14 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """获取一个新的数据库会话"""
     session = AsyncSessionMaker()
     try:
+        logging.debug("创建新的数据库会话")
         yield session
+        logging.debug("数据库会话正常结束")
+    except Exception as e:
+        logging.error(f"数据库会话出错: {e}")
+        raise
     finally:
+        logging.debug("关闭数据库会话")
         await session.close()
 
 
@@ -74,12 +80,16 @@ async def db_operation(func: Callable[[AsyncSession], Awaitable[T]]) -> T:
     async with _db_semaphore:
         async with get_session() as session:
             try:
-                # 创建事务
+                # 创建事务并确保它被提交
                 async with session.begin():
-                    # 执行操作
-                    return await func(session)
+                    result = await func(session)
+                    # 这里不需要显式调用commit，session.begin上下文会自动处理
+                    await session.commit()
+                    logging.debug(f"数据库操作成功提交: {func.__name__ if hasattr(func, '__name__') else '未命名函数'}")
+                    return result
             except Exception as e:
                 logging.error(f"数据库操作失败: {e}", exc_info=True)
+                # 不需要显式调用rollback，session.begin上下文会自动处理
                 raise
 
 

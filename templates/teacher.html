@@ -749,72 +749,234 @@
         }
 
 // 确保发送分片的方法正确
-        sendPiece(pieceId, fileId, peerId) {
-            const dataChannel = this.peerConnections[peerId]?.dataChannel;
-            const pieceData = this.pieceBuffer[pieceId];
+async sendPiece(pieceId, fileId, peerId) {
+    const dataChannel = this.peerConnections[peerId]?.dataChannel;
+    const pieceData = this.pieceBuffer[pieceId];
 
-            if (!dataChannel || dataChannel.readyState !== 'open') {
-                console.error(`TeacherSeed: 数据通道未就绪，无法发送分片 ${pieceId}`);
-                return;
-            }
+    if (!dataChannel || dataChannel.readyState !== 'open') {
+        console.error(`TeacherSeed: 数据通道未就绪，无法发送分片 ${pieceId}`);
+        return;
+    }
 
-            if (!pieceData) {
-                console.error(`TeacherSeed: 没有分片 ${pieceId} 的数据`);
-                this.sendPieceUnavailable(pieceId, peerId);
-                return;
-            }
+    if (!pieceData) {
+        console.error(`TeacherSeed: 没有分片 ${pieceId} 的数据`);
+        this.sendPieceUnavailable(pieceId, peerId);
+        return;
+    }
 
-            console.log(`TeacherSeed: 发送分片数据 ${pieceId} 到节点 ${peerId}, 大小: ${pieceData.byteLength} 字节`);
+    // 存储传输状态
+    if (!this.transfers) this.transfers = {};
 
-            // 发送分片头部信息
-            dataChannel.send(JSON.stringify({
-                type: 'piece_response_header',
-                piece_id: pieceId,
-                file_id: fileId,
-                size: pieceData.byteLength
-            }));
+    // 如果该分片已经在传输中，取消之前的传输
+    if (this.transfers[pieceId]) {
+        console.log(`TeacherSeed: 取消之前的传输 ${pieceId}`);
+        this.transfers[pieceId].active = false;
+    }
 
-            // 等待一小段时间再发送数据，确保头部信息已被处理
-            setTimeout(() => {
-                try {
-                    // 发送二进制数据
-                    dataChannel.send(pieceData);
-                    console.log(`TeacherSeed: 分片 ${pieceId} 数据已发送完成`);
-                } catch (e) {
-                    console.error(`TeacherSeed: 发送分片数据失败: ${e}`);
-                }
-            }, 10);
+    // 创建新的传输状态
+    const transferId = `${pieceId}-${Date.now()}`;
+    const transfer = {
+        id: transferId,
+        pieceId: pieceId,
+        fileId: fileId,
+        peerId: peerId,
+        active: true,
+        totalSize: pieceData.byteLength,
+        sent: 0,
+        acknowledged: 0, // 已确认收到的字节数
+        chunkQueue: [], // 待发送的块队列
+        CHUNK_SIZE: 64 * 1024, // 64KB 的块大小
+        windowSize: 3, // 滑动窗口大小，同时最多发送3个块
+        inFlight: 0,   // 当前未确认的块数量
+        startTime: Date.now(),
+        retryCount: 0
+    };
+
+    this.transfers[pieceId] = transfer;
+
+    console.log(`TeacherSeed: 开始发送分片 ${pieceId} 到节点 ${peerId}, 总大小: ${pieceData.byteLength} 字节`);
+
+    try {
+        // 发送分片头部信息，包含分块传输参数和传输ID
+        dataChannel.send(JSON.stringify({
+            type: 'piece_response_header',
+            piece_id: pieceId,
+            file_id: fileId,
+            size: pieceData.byteLength,
+            chunked: true,  // 标记为分块传输
+            transfer_id: transferId, // 传输ID用于跟踪确认
+            total_chunks: Math.ceil(pieceData.byteLength / transfer.CHUNK_SIZE)
+        }));
+
+        // 计算总块数
+        const totalChunks = Math.ceil(pieceData.byteLength / transfer.CHUNK_SIZE);
+
+        // 准备所有的块
+        for (let i = 0; i < totalChunks; i++) {
+            const offset = i * transfer.CHUNK_SIZE;
+            const chunkSize = Math.min(transfer.CHUNK_SIZE, pieceData.byteLength - offset);
+
+            transfer.chunkQueue.push({
+                index: i,
+                offset: offset,
+                size: chunkSize
+            });
         }
 
-        // 发送分片数据
-        sendPiece(pieceId, fileId, peerId) {
-            const dataChannel = this.peerConnections[peerId]?.dataChannel;
+        // 开始发送初始窗口
+        this.sendNextChunks(transfer, pieceData);
 
-            if (!dataChannel || dataChannel.readyState !== 'open') {
-                console.error(`TeacherSeed: 数据通道未就绪，无法发送分片`);
+    } catch (e) {
+        console.error(`TeacherSeed: 发送分片数据失败: ${e}`);
+        delete this.transfers[pieceId];
+    }
+}
+
+// 发送下一批块
+sendNextChunks(transfer, pieceData) {
+    if (!transfer.active) return;
+
+    const dataChannel = this.peerConnections[transfer.peerId]?.dataChannel;
+    if (!dataChannel || dataChannel.readyState !== 'open') {
+        console.error(`TeacherSeed: 数据通道已关闭，终止传输 ${transfer.pieceId}`);
+        transfer.active = false;
+        return;
+    }
+
+    // 发送窗口中可用的块
+    while (transfer.inFlight < transfer.windowSize && transfer.chunkQueue.length > 0) {
+        const chunk = transfer.chunkQueue.shift();
+
+        // 发送块头部信息
+        dataChannel.send(JSON.stringify({
+            type: 'piece_chunk_header',
+            transfer_id: transfer.id,
+            piece_id: transfer.pieceId,
+            chunk_index: chunk.index,
+            total_chunks: Math.ceil(transfer.totalSize / transfer.CHUNK_SIZE),
+            chunk_size: chunk.size,
+            offset: chunk.offset
+        }));
+
+        // 发送块数据
+        try {
+            const chunkData = pieceData.slice(chunk.offset, chunk.offset + chunk.size);
+            dataChannel.send(chunkData);
+
+            // 更新已发送状态
+            transfer.sent += chunk.size;
+            transfer.inFlight++;
+
+            console.log(`TeacherSeed: 已发送分片 ${transfer.pieceId} 块 ${chunk.index+1}/${Math.ceil(transfer.totalSize / transfer.CHUNK_SIZE)}`);
+        } catch (e) {
+            console.error(`TeacherSeed: 发送块数据失败: ${e}`);
+            // 重新入队，稍后重试
+            transfer.chunkQueue.unshift(chunk);
+
+            // 如果队列已满或重试次数过多，暂停一会儿
+            if (transfer.retryCount++ > 5) {
+                console.log(`TeacherSeed: 暂停传输 ${transfer.pieceId} 500ms 后重试`);
+                setTimeout(() => {
+                    transfer.retryCount = 0;
+                    transfer.inFlight = 0; // 重置飞行窗口
+                    this.sendNextChunks(transfer, pieceData);
+                }, 500);
                 return;
             }
 
-            const pieceData = this.pieceBuffer[pieceId];
-            if (!pieceData) {
-                this.sendPieceUnavailable(pieceId, peerId);
-                return;
-            }
-
-            // 发送分片头部信息
-            dataChannel.send(JSON.stringify({
-                type: 'piece_response_header',
-                piece_id: pieceId,
-                file_id: fileId,
-                size: pieceData.byteLength
-            }));
-
-            // 发送分片数据
-            dataChannel.send(pieceData);
-
-            console.log(`TeacherSeed: 已将分片 ${pieceId} 发送给节点 ${peerId}`);
+            // 短暂暂停后重试
+            setTimeout(() => this.sendNextChunks(transfer, pieceData), 100);
+            return;
         }
+    }
 
+    // 检查是否所有块都已发送和确认
+    if (transfer.chunkQueue.length === 0 && transfer.inFlight === 0 && transfer.acknowledged >= transfer.totalSize) {
+    // 所有数据已发送并确认，发送完成消息
+    dataChannel.send(JSON.stringify({
+        type: 'piece_response_complete',
+        transfer_id: transfer.id,
+        piece_id: transfer.pieceId,
+        file_id: transfer.fileId
+    }));
+
+    const duration = (Date.now() - transfer.startTime) / 1000;
+    const speed = Math.round(transfer.totalSize / 1024 / duration);
+    console.log(`TeacherSeed: 分片 ${transfer.pieceId} 传输完成, 用时: ${duration.toFixed(1)}秒, 速度: ${speed} KB/s`);
+
+    // 通知追踪器该分片已被分发 - 这可以帮助追踪器更好地建议后续分片
+    this.notifyPieceDistributed(transfer.pieceId, transfer.peerId);
+
+    // 清理传输状态
+    delete this.transfers[transfer.pieceId];
+}
+}
+// 添加通知分片分发完成的方法
+notifyPieceDistributed(pieceId, peerId) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify({
+            type: 'piece_distributed',
+            piece_id: pieceId,
+            peer_id: peerId
+        }));
+    }
+}
+// 处理块确认消息
+handleChunkAck(message) {
+    const transferId = message.transfer_id;
+    const pieceId = message.piece_id;
+    const chunkIndex = message.chunk_index;
+    const chunkSize = message.chunk_size;
+
+    // 查找对应的传输
+    let transfer = null;
+    for (const tid in this.transfers) {
+        if (this.transfers[tid].id === transferId) {
+            transfer = this.transfers[tid];
+            break;
+        }
+    }
+
+    if (!transfer) {
+        console.log(`TeacherSeed: 收到未知传输的块确认: ${transferId} 块 ${chunkIndex}`);
+        return;
+    }
+
+    // 更新已确认状态
+    transfer.acknowledged += chunkSize;
+    transfer.inFlight = Math.max(0, transfer.inFlight - 1);
+
+    // 继续发送剩余块
+    if (transfer.active && transfer.chunkQueue.length > 0) {
+        this.sendNextChunks(transfer, this.pieceBuffer[pieceId]);
+    }
+}
+
+// 在 handleDataChannelMessage 方法中添加处理确认消息
+handleDataChannelMessage(event, sourcePeerId) {
+    // 更新最后活动时间
+    if (this.peerConnections[sourcePeerId]) {
+        this.peerConnections[sourcePeerId].lastActivity = Date.now();
+    }
+
+    // 处理文本消息
+    if (typeof event.data === 'string') {
+        try {
+            const message = JSON.parse(event.data);
+
+            if (message.type === 'piece_request') {
+                this.handlePieceRequest(message, sourcePeerId);
+            } else if (message.type === 'chunk_ack') {
+                // 处理块确认消息
+                this.handleChunkAck(message);
+            } else {
+                console.log(`TeacherSeed: 收到未知类型消息: ${message.type}`);
+            }
+        } catch (e) {
+            console.error(`TeacherSeed: 解析消息失败: ${e}`);
+        }
+    }
+}
         // 发送分片不可用消息
         sendPieceUnavailable(pieceId, peerId) {
             const dataChannel = this.peerConnections[peerId]?.dataChannel;

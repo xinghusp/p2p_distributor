@@ -304,6 +304,15 @@
         let heartbeatInterval = null;
         const heartbeatDelay = 10000; // 10秒一次心跳
 
+
+let activeTransfers = {};  // 当前活动的传输
+let pieceChunks = {};      // 存储分片块
+let currentPieceData = null; // 当前正在接收的分片信息
+const MAX_CONCURRENT_REQUESTS = 3;  // 最大并发请求数
+const REQUEST_DELAY = 200;          // 请求间隔(毫秒)
+        let downloadMonitorInterval = null;
+        let lastSpeedUpdateTime = Date.now();
+
         // 当页面加载完成时执行
         document.addEventListener('DOMContentLoaded', function() {
             // 检查URL中是否包含分发任务ID (例如通过分享链接打开)
@@ -337,6 +346,7 @@
 
             // 检查已完成的文件下载
             setInterval(checkCompletedFiles, 2000);
+            startTransferMonitor();
         });
 
         // 调试日志函数
@@ -562,16 +572,27 @@
         }
 
         // 请求分片建议
-        function requestPieceSuggestions() {
-            if (!ws || !currentDistributionId || activePieceRequests.size >= 10) return;
+       // 修改 requestPieceSuggestions 函数，使用正确的消息类型
+function requestPieceSuggestions() {
+    if (!downloadInProgress) return;
 
-            ws.send(JSON.stringify({
-                type: 'request_pieces',
-                max_suggestions: 20
-            }));
+    // 如果活动请求已达上限，延迟请求
+    if (activePieceRequests.size >= MAX_CONCURRENT_REQUESTS) {
+        setTimeout(requestPieceSuggestions, 500);
+        return;
+    }
 
-            logDebug('请求分片建议', 'info');
-        }
+    // 发送WebSocket请求获取分片建议 - 使用 'get_suggestions' 替代 'get_piece_suggestions'
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        logDebug(`请求分片建议，当前活跃请求: ${activePieceRequests.size}/${MAX_CONCURRENT_REQUESTS}`, 'info');
+        ws.send(JSON.stringify({
+            type: 'request_pieces',  // 使用正确的消息类型
+            max_count: 10  // 请求比需要的更多建议，增加选择空间
+        }));
+    } else {
+        logDebug("WebSocket连接不可用，无法请求分片建议", 'error');
+    }
+}
 
         // 处理节点列表
         function handlePeersList(data) {
@@ -598,27 +619,85 @@ function handlePieceSuggestions(data) {
     const suggestions = data.suggestions || [];
     logDebug(`收到${suggestions.length}个分片建议`, 'info');
 
-    suggestions.forEach(suggestion => {
-        // 检查该文件的分片是否已下载
+    // 如果没有收到任何建议，但下载未完成，则等待后重试
+    if (suggestions.length === 0) {
+        // 检查是否所有文件都已完成
+        let allComplete = true;
+        let totalPieces = 0;
+        let downloadedPieces = 0;
+
+        for (const fileId in fileData) {
+            const file = fileData[fileId];
+            totalPieces += file.pieceCount;
+            downloadedPieces += file.downloadedPieces.size;
+            if (file.downloadedPieces.size < file.pieceCount) {
+                allComplete = false;
+            }
+        }
+
+        if (allComplete) {
+            logDebug("所有文件下载完成!", 'success');
+            finishDownload();
+            return;
+        }
+
+        // 显示整体进度
+        const overallPercent = Math.round((downloadedPieces / totalPieces) * 100);
+        logDebug(`整体下载进度: ${overallPercent}% (${downloadedPieces}/${totalPieces} 分片)`, 'info');
+
+        // 等待后重试
+        setTimeout(requestPieceSuggestions, 2000);
+        return;
+    }
+
+    // 筛选可以请求的分片（未下载且未在请求中）
+    const validSuggestions = suggestions.filter(suggestion => {
         const fileId = suggestion.file_id;
         const pieceId = suggestion.piece_id;
 
-        if (fileData[fileId] &&
-            !fileData[fileId].downloadedPieces.has(pieceId) &&
-            !activePieceRequests.has(pieceId)) {
+        return fileData[fileId] &&
+               !fileData[fileId].downloadedPieces.has(pieceId) &&
+               !activePieceRequests.has(pieceId);
+    });
 
-            // 记录这个分片正在请求
-            activePieceRequests.add(pieceId);
+    // 如果所有建议都已经下载或正在请求中，等待后再次请求
+    if (validSuggestions.length === 0) {
+        if (activePieceRequests.size < MAX_CONCURRENT_REQUESTS) {
+            // 设置较短的延迟以快速获取新建议
+            setTimeout(requestPieceSuggestions, 500);
+        }
+        return;
+    }
 
-            // 找到有这个分片的节点
-            const availablePeers = suggestion.available_peers || [];
+    // 计算可以发起的新请求数量
+    const availableSlots = MAX_CONCURRENT_REQUESTS - activePieceRequests.size;
+    if (availableSlots <= 0) {
+        // 如果没有可用槽位，稍后再检查
+        setTimeout(requestPieceSuggestions, 200);
+        return;
+    }
 
-            if (availablePeers.length === 0) {
-                logDebug(`分片 ${pieceId} 没有可用节点`, 'warning');
-                activePieceRequests.delete(pieceId);
-                return;
-            }
+    // 选择最多availableSlots个分片进行请求
+    const selectedSuggestions = validSuggestions.slice(0, availableSlots);
+    logDebug(`将请求 ${selectedSuggestions.length} 个新分片，当前活跃请求: ${activePieceRequests.size}`, 'info');
 
+    // 对每个选定的建议尝试发起请求
+    let successfulRequests = 0;
+    selectedSuggestions.forEach((suggestion, index) => {
+        const fileId = suggestion.file_id;
+        const pieceId = suggestion.piece_id;
+        const availablePeers = suggestion.available_peers || [];
+
+        if (availablePeers.length === 0) {
+            logDebug(`分片 ${pieceId} 没有可用节点`, 'warning');
+            return;
+        }
+
+        // 标记这个分片正在请求
+        activePieceRequests.add(pieceId);
+
+        // 添加延时，避免同时发送大量请求
+        setTimeout(() => {
             // 尝试从可用节点请求分片
             let requestSent = false;
             for (const remotePeer of availablePeers) {
@@ -634,6 +713,7 @@ function handlePieceSuggestions(data) {
                             file_id: fileId
                         }));
                         requestSent = true;
+                        successfulRequests++;
                         break;
                     }
                 }
@@ -644,15 +724,20 @@ function handlePieceSuggestions(data) {
                 activePieceRequests.delete(pieceId);
                 logDebug(`没有可用的连接来请求分片 ${pieceId}`, 'warning');
             }
-        }
+
+            // 在最后一个请求完成后，如果还有空间，再次请求更多分片
+            if (index === selectedSuggestions.length - 1 && downloadInProgress) {
+                // 如果没有成功的请求但还有空间，立即请求更多
+                if (successfulRequests === 0 && activePieceRequests.size < MAX_CONCURRENT_REQUESTS) {
+                    requestPieceSuggestions();
+                } else {
+                    // 否则等待一段时间后再请求更多
+                    setTimeout(requestPieceSuggestions, 1000);
+                }
+            }
+        }, index * 50);  // 每个请求间隔 50 毫秒，更快速地发起请求
     });
-
-    // 如果还有空闲容量，请求更多分片建议
-    if (activePieceRequests.size < 10 && downloadInProgress) {
-        setTimeout(requestPieceSuggestions, 500);
-    }
 }
-
         // 发起P2P连接
         function initiatePeerConnection(peer) {
             if (peerConnections[peer.id]) {
@@ -778,37 +863,218 @@ function handlePieceSuggestions(data) {
         }
 
         // 处理数据通道消息
-        function handleDataChannelMessage(event, sourcePeerId) {
-            // 更新最后活动时间
-            if (peerConnections[sourcePeerId]) {
-                peerConnections[sourcePeerId].lastActivity = Date.now();
+     function handleDataChannelMessage(event, sourcePeerId) {
+    // 更新最后活动时间
+    if (peerConnections[sourcePeerId]) {
+        peerConnections[sourcePeerId].lastActivity = Date.now();
+    }
+
+    // 如果是文本消息，解析JSON
+    if (typeof event.data === 'string') {
+        try {
+            const message = JSON.parse(event.data);
+
+            if (message.type === 'piece_response_header' && message.chunked) {
+                // 处理分块传输头部
+                const transfer = {
+                    transferId: message.transfer_id,
+                    pieceId: message.piece_id,
+                    fileId: message.file_id,
+                    size: message.size,
+                    receivedChunks: 0,
+                    totalChunks: message.total_chunks,
+                    receivedSize: 0,
+                    chunks: {},
+                    peerId: sourcePeerId,
+                    startTime: Date.now()
+                };
+
+                activeTransfers[message.transfer_id] = transfer;
+                pieceChunks[message.piece_id] = new Uint8Array(message.size);
+
+                logDebug(`准备接收分片(分块模式): ${message.piece_id}, 大小: ${formatBytes(message.size)}`, 'info');
             }
+            else if (message.type === 'piece_chunk_header') {
+                // 处理分块头部
+                const transfer = activeTransfers[message.transfer_id];
 
-            // 如果是文本消息，解析JSON
-            if (typeof event.data === 'string') {
-                try {
-                    const message = JSON.parse(event.data);
+                if (transfer) {
+                    transfer.currentChunkIndex = message.chunk_index;
+                    transfer.currentChunkSize = message.chunk_size;
+                    transfer.currentOffset = message.offset;
 
-                    if (message.type === 'piece_request') {
-                        // 处理分片请求
-                        handlePieceRequest(message, sourcePeerId);
-                    } else if (message.type === 'piece_response_header') {
-                        // 处理分片响应头部
-                        prepareForPieceData(message);
-                    } else if (message.type === 'piece_not_available') {
-                        // 处理分片不可用的情况
-                        logDebug(`节点 ${sourcePeerId} 没有分片 ${message.piece_id}`, 'warning');
-                        activePieceRequests.delete(message.piece_id);
+                    logDebug(`接收分块 ${message.chunk_index+1}/${message.total_chunks} (大小: ${formatBytes(message.chunk_size)})`, 'info');
+
+                    // 发送确认
+                    const dataChannel = dataChannels[transfer.peerId];
+                    if (dataChannel && dataChannel.readyState === 'open') {
+                        dataChannel.send(JSON.stringify({
+                            type: 'chunk_ack',
+                            transfer_id: message.transfer_id,
+                            piece_id: transfer.pieceId,
+                            chunk_index: message.chunk_index,
+                            chunk_size: message.chunk_size
+                        }));
                     }
-                } catch (e) {
-                    logDebug(`解析消息失败: ${e}`, 'error');
                 }
             }
-            // 如果是二进制数据，处理分片数据
-            else if (event.data instanceof ArrayBuffer) {
-                handlePieceData(event.data, sourcePeerId);
+            else if (message.type === 'piece_response_complete') {
+                // 完成分片传输
+                const transfer = activeTransfers[message.transfer_id];
+
+                if (transfer) {
+                    // 现在pieceChunks[transfer.pieceId]包含完整的分片数据
+                    const completeData = pieceChunks[transfer.pieceId].buffer;
+
+                    // 打印明确的完成日志
+                    logDebug(`分片 ${transfer.pieceId} 接收完成! 大小: ${formatBytes(completeData.byteLength)}`, 'success');
+
+                    // 处理完整的分片数据
+                    handleCompletePieceData(completeData, transfer.pieceId, transfer.fileId, transfer.peerId);
+
+                    // 清理
+                    delete pieceChunks[transfer.pieceId];
+                    delete activeTransfers[message.transfer_id];
+
+                    // 立即请求更多分片 - 关键步骤
+                    setTimeout(() => {
+                        if (downloadInProgress && activePieceRequests.size < MAX_CONCURRENT_REQUESTS) {
+                            logDebug("分片完成后请求更多分片", 'info');
+                            requestPieceSuggestions();
+                        }
+                    }, 100);
+                }
             }
+            else if (message.type === 'piece_request') {
+                // 处理分片请求
+                handlePieceRequest(message, sourcePeerId);
+            }
+            else if (message.type === 'piece_not_available') {
+                // 处理分片不可用的情况
+                logDebug(`节点 ${sourcePeerId} 没有分片 ${message.piece_id}`, 'warning');
+                activePieceRequests.delete(message.piece_id);
+
+                // 如果还在下载状态，请求更多分片
+                if (downloadInProgress && activePieceRequests.size < MAX_CONCURRENT_REQUESTS) {
+                    requestPieceSuggestions();
+                }
+            }
+        } catch (e) {
+            logDebug(`解析消息失败: ${e}`, 'error');
         }
+    }
+    // 如果是二进制数据
+    else if (event.data instanceof ArrayBuffer || event.data instanceof Blob) {
+        const handleBinaryData = async (data) => {
+            const arrayBuffer = data instanceof Blob ? await data.arrayBuffer() : data;
+
+            // 找到对应的传输
+            let activeTransfer = null;
+            for (const tid in activeTransfers) {
+                const transfer = activeTransfers[tid];
+                if (transfer.currentChunkIndex !== undefined) {
+                    activeTransfer = transfer;
+                    break;
+                }
+            }
+
+            if (activeTransfer) {
+                // 处理分块传输的二进制数据
+                const targetArray = pieceChunks[activeTransfer.pieceId];
+                const chunkData = new Uint8Array(arrayBuffer);
+                targetArray.set(chunkData, activeTransfer.currentOffset);
+
+                // 更新已接收的大小
+                activeTransfer.receivedSize += chunkData.byteLength;
+                activeTransfer.receivedChunks++;
+
+                // 更新进度条（可选）
+                const progress = Math.round((activeTransfer.receivedSize / activeTransfer.size) * 100);
+                updatePartialProgress(activeTransfer.fileId, progress);
+
+                // 清除当前块索引，表示已处理完当前块
+                activeTransfer.currentChunkIndex = undefined;
+            }
+        };
+
+        if (event.data instanceof Blob) {
+            event.data.arrayBuffer().then(handleBinaryData);
+        } else {
+            handleBinaryData(event.data);
+        }
+    }
+}
+function updatePartialProgress(fileId, progress) {
+    // 查找文件的界面元素并更新其进度
+    const fileElement = document.getElementById(`file-${fileId}`);
+    if (fileElement) {
+        const progressBar = fileElement.querySelector('.progress-bar');
+        if (progressBar) {
+            progressBar.style.width = `${progress}%`;
+        }
+    }
+}
+// 处理完整分片数据的函数
+function handleCompletePieceData(data, pieceId, fileId, sourcePeerId) {
+    // 保存分片数据
+    pieceBuffer[pieceId] = data;
+
+    // 确保fileData存在且有必要的属性
+    if (!fileData[fileId]) {
+        logDebug(`文件ID ${fileId} 不存在于fileData中`, 'error');
+        activePieceRequests.delete(pieceId);
+        return;
+    }
+
+    // 标记分片为已下载
+    fileData[fileId].downloadedPieces.add(pieceId);
+
+    // 更新下载大小和进度
+    const pieceSizeContribution = data.byteLength;
+    fileData[fileId].downloadedSize += pieceSizeContribution;
+    totalBytesDownloaded += pieceSizeContribution;
+    bytesDownloadedSinceLastUpdate += pieceSizeContribution;
+
+    // 更新文件进度百分比
+    fileData[fileId].progress = Math.min(100,
+        Math.round((fileData[fileId].downloadedPieces.size / fileData[fileId].pieceCount) * 100));
+
+    // 更新UI
+    updateFileProgress(fileId, fileData[fileId].progress);
+    updateOverallProgress();
+
+    // 通知服务器此分片已下载 - 关键步骤
+    notifyPieceDownloaded(pieceId);
+
+    logDebug(`分片 ${pieceId} 已从节点 ${sourcePeerId} 下载完成，文件 ${fileId} 进度: ${fileData[fileId].progress}%`, 'success');
+
+    // 从活动请求中移除
+    activePieceRequests.delete(pieceId);
+
+    // 立即请求更多分片 - 关键步骤
+    if (downloadInProgress && activePieceRequests.size < MAX_CONCURRENT_REQUESTS) {
+        logDebug("处理完分片后请求更多分片", 'info');
+        setTimeout(requestPieceSuggestions, 50);
+    }
+}
+// 添加文件完成检查函数
+function checkFileCompletion(fileId) {
+    const file = fileData[fileId];
+    if (!file) return;
+
+    // 检查是否所有分片都已下载
+    if (file.downloadedPieces.size === file.pieceCount) {
+        logDebug(`文件 ${file.name} 下载完成!`, 'success');
+
+        // 组装完整文件
+        assembleCompleteFile(fileId);
+    } else {
+        // 文件尚未完成，记录当前进度
+        const remaining = file.pieceCount - file.downloadedPieces.size;
+        logDebug(`文件 ${file.name} 还剩 ${remaining} 个分片待下载 (${file.progress}% 已完成)`, 'info');
+    }
+}
+
 
         // 请求分片数据
         function requestPieceFromPeer(dataChannel, pieceId, pieceInfo) {
@@ -1171,7 +1437,74 @@ function handlePieceSuggestions(data) {
 
             // 请求分片建议
             requestPieceSuggestions();
+
+            startDownloadMonitor();
         }
+        function startDownloadMonitor() {
+    if (downloadMonitorInterval) {
+        clearInterval(downloadMonitorInterval);
+    }
+
+    // 设置5秒的间隔来检查下载状态
+    downloadMonitorInterval = setInterval(() => {
+        if (!downloadInProgress) {
+            clearInterval(downloadMonitorInterval);
+            downloadMonitorInterval = null;
+            return;
+        }
+
+        // 检查是否有活动请求
+        if (activePieceRequests.size === 0) {
+            logDebug("没有活动的下载请求，重新启动请求", 'warning');
+            requestPieceSuggestions();
+            return;
+        }
+
+        // 检查下载速度
+        const currentTime = Date.now();
+        const timeElapsed = (currentTime - lastSpeedUpdateTime) / 1000;
+
+        if (timeElapsed >= 5) {  // 每5秒更新一次速度
+            const downloadSpeed = bytesDownloadedSinceLastUpdate / timeElapsed / 1024;
+            logDebug(`当前下载速度: ${downloadSpeed.toFixed(2)} KB/s`, 'info');
+
+            lastSpeedUpdateTime = currentTime;
+            bytesDownloadedSinceLastUpdate = 0;
+
+            // 如果速度过低或为零，尝试获取更多连接和分片
+            if (downloadSpeed < 5) {  // 阈值设为5KB/s
+                logDebug("下载速度过低，尝试获取更多连接", 'warning');
+                refreshPeerConnections();
+                requestPieceSuggestions();
+            }
+        }
+
+        // 更新整体进度日志
+        let totalPieces = 0;
+        let downloadedPieces = 0;
+
+        for (const fileId in fileData) {
+            const file = fileData[fileId];
+            totalPieces += file.pieceCount;
+            downloadedPieces += file.downloadedPieces.size;
+        }
+
+        const overallPercent = Math.round((downloadedPieces / totalPieces) * 100);
+        console.log("整体下载进度: " + overallPercent + "%");
+        //updateOverallProgressDisplay(overallPercent, downloadedPieces, totalPieces);
+    }, 5000);
+}
+
+// 添加用于刷新节点连接的函数
+function refreshPeerConnections() {
+    // 获取最新的节点列表
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        logDebug("请求刷新节点列表", 'info');
+        ws.send(JSON.stringify({
+            type: 'request_peers'
+        }));
+    }
+}
 
         // 开始下载特定文件
         function startDownloadFile(fileId) {
@@ -1407,7 +1740,76 @@ function handlePieceSuggestions(data) {
 
         console.debug('已发送心跳');
     }
+    // 添加传输监控函数
+function startTransferMonitor() {
+    // 每10秒检查一次传输状态
+    setInterval(() => {
+        if (!downloadInProgress) return;
 
+        const now = Date.now();
+        let stalledTransfers = 0;
+
+        // 检查所有活跃传输
+        for (const transferId in activeTransfers) {
+            const transfer = activeTransfers[transferId];
+
+            // 如果某个传输超过30秒没有新块，认为它卡住了
+            if (now - transfer.lastUpdateTime > 30000) {
+                stalledTransfers++;
+                logDebug(`传输 ${transfer.pieceId} 似乎卡住了，已经 ${Math.round((now - transfer.lastUpdateTime)/1000)} 秒没有更新`, 'warning');
+
+                // 取消此传输并从活跃请求中移除
+                delete activeTransfers[transferId];
+                activePieceRequests.delete(transfer.pieceId);
+                delete pieceChunks[transfer.pieceId];
+            }
+        }
+
+        // 如果发现卡住的传输，尝试请求新分片
+        if (stalledTransfers > 0) {
+            logDebug(`取消了 ${stalledTransfers} 个卡住的传输，尝试请求新分片`, 'warning');
+            requestPieceSuggestions();
+        }
+
+        // 如果没有活跃传输但还有未完成的文件，也请求新分片
+        const allTransfersComplete = Object.keys(activeTransfers).length === 0;
+        let allFilesComplete = true;
+
+        for (const fileId in fileData) {
+            if (fileData[fileId].progress < 100) {
+                allFilesComplete = false;
+                break;
+            }
+        }
+
+        if (allTransfersComplete && !allFilesComplete && activePieceRequests.size === 0) {
+            logDebug("所有传输已完成，但文件未完成，请求新分片", 'warning');
+            requestPieceSuggestions();
+        }
+    }, 10000);
+}
+// 添加WebSocket重连函数
+function reconnectWebSocket() {
+    if (ws && ws.readyState !== WebSocket.CLOSED) return;
+
+    logDebug("尝试重新连接WebSocket...", 'warning');
+
+    // 创建新的WebSocket连接
+    connectWebSocket();
+
+    // 如果已加入分发任务，重新加入
+    if (currentDistributionId) {
+        setTimeout(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                logDebug("重新加入分发任务...", 'info');
+                ws.send(JSON.stringify({
+                    type: 'join_distribution',
+                    distribution_id: currentDistributionId
+                }));
+            }
+        }, 1000);
+    }
+}
 
     </script>
 </body>

@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Dict, List, Set, Optional, Any, Tuple
 
-from sqlalchemy import select, update, func, Integer, delete, or_
+from sqlalchemy import select, update, func, Integer, delete, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -286,145 +286,255 @@ class P2PTracker:
         return distribution_id
 
     async def announce_peer(self, distribution_id: str, ip_address: str, port: int,
-                           client_id: str = None, user_agent: str = None, is_seed: bool = False) -> Dict[str, Any]:
-        """处理节点通告请求"""
-        async def _announce(session):
-            # 检查分发任务是否存在
-            stmt = select(Distribution).where(Distribution.id == distribution_id)
-            result = await session.execute(stmt)
-            distribution = result.scalars().first()
+                            client_id: str = None, user_agent: str = None, is_seed: bool = False) -> Dict[str, Any]:
+        """
+        处理节点通告请求
+        """
+        try:
+            logging.info(
+                f"开始处理节点通告: distribution_id={distribution_id}, client_id={client_id}, ip={ip_address}:{port}")
+
+            # 首先确认分发任务是否存在
+            async def check_distribution(session):
+                stmt = select(Distribution).where(Distribution.id == distribution_id)
+                result = await session.execute(stmt)
+                return result.scalars().first()
+
+            distribution = await db_operation(check_distribution)
 
             if not distribution:
+                logging.error(f"分发任务不存在: {distribution_id}")
                 raise ValueError(f"分发任务不存在: {distribution_id}")
 
-            # 查找或创建节点
-            stmt = select(Peer).where(
-                Peer.distribution_id == distribution_id,
-                Peer.client_id == client_id if client_id else Peer.ip_address == ip_address and Peer.port == port
-            )
-            result = await session.execute(stmt)
-            peer = result.scalars().first()
+            # 创建或更新节点 - 使用独立的简单方法，降低复杂性
+            peer_id = None
 
-            if not peer:
-                peer = Peer(
-                    id=str(uuid.uuid4()),
-                    distribution_id=distribution_id,
-                    ip_address=ip_address,
-                    port=port,
-                    client_id=client_id,
-                    user_agent=user_agent,
-                    is_seed=is_seed,
-                    last_seen=datetime.utcnow()
+            # 简化查找现有节点的逻辑
+            async def find_peer(session):
+                search_conditions = []
+                if client_id:
+                    search_conditions.append(Peer.client_id == client_id)
+                else:
+                    search_conditions.append(Peer.ip_address == ip_address)
+                    search_conditions.append(Peer.port == port)
+
+                stmt = select(Peer).where(
+                    Peer.distribution_id == distribution_id,
+                    *search_conditions
                 )
-                session.add(peer)
-                logging.info(f"新节点已注册: client_id={client_id}, is_seed={is_seed}")
-            else:
+                result = await session.execute(stmt)
+                return result.scalars().first()
+
+            existing_peer = await db_operation(find_peer)
+
+            if existing_peer:
                 # 更新现有节点
-                peer.last_seen = datetime.utcnow()
-                peer.is_seed = is_seed
-                if user_agent:
-                    peer.user_agent = user_agent
-                logging.info(f"节点已更新: peer_id={peer.id}, is_seed={is_seed}")
+                async def update_existing_peer(session):
+                    peer = await session.get(Peer, existing_peer.id)
+                    if peer:
+                        peer.last_seen = datetime.utcnow()
+                        peer.ip_address = ip_address
+                        peer.port = port
+                        peer.is_seed = is_seed
+                        if user_agent:
+                            peer.user_agent = user_agent
+                        await session.flush()  # 确保更改被保存
+                        return peer
+                    return None
 
-            # 节点已正确保存，继续获取相关信息
+                peer = await db_operation(update_existing_peer)
+                if peer:
+                    peer_id = peer.id
+                    logging.info(
+                        f"更新现有节点: id={peer_id}, distribution_id={distribution_id}, client_id={client_id}")
+            else:
+                # 创建新节点
+                async def create_new_peer(session):
+                    new_peer_id = str(uuid.uuid4())
+                    peer = Peer(
+                        id=new_peer_id,
+                        distribution_id=distribution_id,
+                        ip_address=ip_address,
+                        port=port,
+                        client_id=client_id,
+                        user_agent=user_agent,
+                        is_seed=is_seed,
+                        last_seen=datetime.utcnow()
+                    )
+                    session.add(peer)
+                    await session.flush()  # 确保ID被生成并可用
+                    return peer
 
-            # 查询该节点拥有的所有分片
-            pieces_stmt = select(PeerPiece).where(PeerPiece.peer_id == peer.id)
-            pieces_result = await session.execute(pieces_stmt)
-            peer_pieces = pieces_result.scalars().all()
-            owned_pieces = [pp.piece_id for pp in peer_pieces]
+                peer = await db_operation(create_new_peer)
+                peer_id = peer.id
+                logging.info(
+                    f"创建新节点: id={peer_id}, distribution_id={distribution_id}, client_id={client_id}, ip={ip_address}:{port}")
+
+            # 特别确认创建/更新成功 - 强制直接访问数据库进行验证
+            async def verify_peer(session):
+                stmt = text("""
+                    SELECT id, client_id, distribution_id FROM peers
+                    WHERE id = :peer_id
+                """)
+                result = await session.execute(stmt, {"peer_id": peer_id})
+                row = result.first()
+                if row:
+                    logging.info(f"验证节点成功存在: id={row[0]}, client_id={row[1]}, distribution_id={row[2]}")
+                    return True
+                else:
+                    logging.error(f"验证失败，节点不存在: id={peer_id}")
+                    return False
+
+            verified = await db_operation(verify_peer)
+            if not verified:
+                # 如果验证失败，尝试最后一次强制创建
+                async def force_create_peer(session):
+                    # 使用原始SQL插入以避免任何ORM问题
+                    stmt = text("""
+                        INSERT INTO peers (id, distribution_id, client_id, ip_address, port, user_agent, is_seed, joined_at, last_seen)
+                        VALUES (:id, :distribution_id, :client_id, :ip_address, :port, :user_agent, :is_seed, :now, :now)
+                    """)
+                    await session.execute(stmt, {
+                        "id": peer_id or str(uuid.uuid4()),
+                        "distribution_id": distribution_id,
+                        "client_id": client_id,
+                        "ip_address": ip_address,
+                        "port": port,
+                        "user_agent": user_agent or "",
+                        "is_seed": is_seed,
+                        "now": datetime.utcnow()
+                    })
+                    # 强制提交
+                    await session.commit()
+                    logging.info("强制创建节点并提交")
+                    return peer_id
+
+                peer_id = await db_operation(force_create_peer)
+
+            # 获取节点拥有的分片列表
+            async def get_peer_pieces(session):
+                stmt = select(PeerPiece).where(PeerPiece.peer_id == peer_id)
+                result = await session.execute(stmt)
+                return [pp.piece_id for pp in result.scalars().all()]
+
+            owned_pieces = await db_operation(get_peer_pieces)
 
             # 计算活跃节点数量
-            active_time = datetime.utcnow() - timedelta(minutes=5)
-            count_stmt = select(func.count()).select_from(Peer).where(
-                Peer.distribution_id == distribution_id,
-                Peer.last_seen > active_time
-            )
-            count_result = await session.execute(count_stmt)
-            peer_count = count_result.scalar() or 0
+            async def count_peers(session):
+                stmt = select(func.count()).select_from(Peer).where(
+                    Peer.distribution_id == distribution_id,
+                    Peer.last_seen > (datetime.utcnow() - timedelta(minutes=5))
+                )
+                result = await session.execute(stmt)
+                return result.scalar() or 0
 
-            return {
-                "peer_id": peer.id,
+            active_peers = await db_operation(count_peers)
+
+            # 构造并返回结果
+            result = {
+                "peer_id": peer_id,
                 "distribution_id": distribution_id,
                 "owned_pieces": owned_pieces,
-                "peer_count": peer_count
+                "peer_count": active_peers
             }
 
-        try:
-            return await db_operation(_announce)
+            logging.info(
+                f"节点通告处理成功: peer_id={peer_id}, distribution_id={distribution_id}, owned_pieces={len(owned_pieces)}")
+            return result
+
         except Exception as e:
             logging.error(f"处理节点通告失败: {e}", exc_info=True)
             raise
 
     async def update_peer_piece(self, peer_id: str, piece_id: str, has_piece: bool = True):
-        """更新节点的分片状态"""
-        async def _update(session):
-            # 查询节点
-            stmt = select(Peer).where(Peer.id == peer_id)
-            result = await session.execute(stmt)
-            peer = result.scalars().first()
+        """
+        更新节点的分片状态
+
+        参数:
+            peer_id: 节点ID
+            piece_id: 分片ID
+            has_piece: 是否拥有分片
+        """
+        try:
+            logging.info(f"开始更新节点分片状态: peer_id={peer_id}, piece_id={piece_id}, has_piece={has_piece}")
+
+            # 查询节点 - 使用db_operation
+            async def check_peer(session):
+                stmt = select(Peer).where(Peer.id == peer_id)
+                result = await session.execute(stmt)
+                return result.scalars().first()
+
+            peer = await db_operation(check_peer)
 
             if not peer:
+                logging.error(f"节点不存在: {peer_id}")
                 raise ValueError(f"节点不存在: {peer_id}")
 
             distribution_id = peer.distribution_id
 
-            # 检查分片是否存在
-            stmt = select(FilePiece).where(FilePiece.id == piece_id)
-            result = await session.execute(stmt)
-            piece = result.scalars().first()
+            # 检查分片是否存在 - 使用db_operation
+            async def check_piece(session):
+                stmt = select(FilePiece).where(FilePiece.id == piece_id)
+                result = await session.execute(stmt)
+                return result.scalars().first()
+
+            piece = await db_operation(check_piece)
 
             if not piece:
+                logging.error(f"分片不存在: {piece_id}")
                 raise ValueError(f"分片不存在: {piece_id}")
 
-            # 查询节点分片记录
-            stmt = select(PeerPiece).where(
-                PeerPiece.peer_id == peer_id,
-                PeerPiece.piece_id == piece_id
-            )
-            result = await session.execute(stmt)
-            peer_piece = result.scalars().first()
-
-            if peer_piece:
-                # 更新现有记录
-                peer_piece.has_piece = has_piece
-                peer_piece.last_updated = datetime.now()
-            else:
-                # 创建新记录
-                peer_piece = PeerPiece(
-                    id=str(uuid.uuid4()),
-                    peer_id=peer_id,
-                    piece_id=piece_id,
-                    has_piece=has_piece,
-                    last_updated=datetime.now()
+            # 更新或创建节点分片记录 - 使用db_operation
+            async def update_piece(session):
+                # 查询节点分片记录
+                stmt = select(PeerPiece).where(
+                    PeerPiece.peer_id == peer_id,
+                    PeerPiece.piece_id == piece_id
                 )
-                session.add(peer_piece)
+                result = await session.execute(stmt)
+                peer_piece = result.scalars().first()
 
-            # 更新分片可用性缓存信息（返回以供外部使用）
-            return {
-                "distribution_id": distribution_id,
-                "peer_id": peer_id,
-                "piece_id": piece_id,
-                "has_piece": has_piece
-            }
+                if peer_piece:
+                    # 更新现有记录
+                    peer_piece.has_piece = has_piece
+                    peer_piece.last_updated = datetime.now()
+                    logging.info(f"更新现有分片记录: peer_id={peer_id}, piece_id={piece_id}")
+                else:
+                    # 创建新记录
+                    peer_piece = PeerPiece(
+                        id=str(uuid.uuid4()),
+                        peer_id=peer_id,
+                        piece_id=piece_id,
+                        has_piece=has_piece,
+                        last_updated=datetime.now()
+                    )
+                    session.add(peer_piece)
+                    logging.info(f"创建新分片记录: peer_id={peer_id}, piece_id={piece_id}")
 
-        result = await db_operation(_update)
+                # 确保记录会被提交
+                return True
 
-        # 更新内存中的分片可用性缓存
-        distribution_id = result["distribution_id"]
-        has_piece = result["has_piece"]
+            await db_operation(update_piece)
 
-        if distribution_id in self._piece_availability:
-            if piece_id not in self._piece_availability[distribution_id]:
-                self._piece_availability[distribution_id][piece_id] = []
+            # 更新分片可用性缓存
+            if distribution_id in self._piece_availability:
+                if piece_id not in self._piece_availability[distribution_id]:
+                    self._piece_availability[distribution_id][piece_id] = []
 
-            if has_piece and peer_id not in self._piece_availability[distribution_id][piece_id]:
-                self._piece_availability[distribution_id][piece_id].append(peer_id)
-            elif not has_piece and peer_id in self._piece_availability[distribution_id][piece_id]:
-                self._piece_availability[distribution_id][piece_id].remove(peer_id)
+                if has_piece and peer_id not in self._piece_availability[distribution_id][piece_id]:
+                    self._piece_availability[distribution_id][piece_id].append(peer_id)
+                    logging.debug(f"更新分片可用性缓存: 添加 peer_id={peer_id}, piece_id={piece_id}")
+                elif not has_piece and peer_id in self._piece_availability[distribution_id][piece_id]:
+                    self._piece_availability[distribution_id][piece_id].remove(peer_id)
+                    logging.debug(f"更新分片可用性缓存: 移除 peer_id={peer_id}, piece_id={piece_id}")
 
-        # 检查节点是否已完成所有分片下载
-        await self._check_peer_completed(peer_id, distribution_id)
+            # 检查节点是否已完成所有分片下载 - 在单独事务中执行
+            await self._check_peer_completed(peer_id, distribution_id)
+            logging.info(f"节点分片状态更新成功: peer_id={peer_id}, piece_id={piece_id}")
+
+        except Exception as e:
+            logging.error(f"更新节点分片状态失败: {e}", exc_info=True)
+            raise
 
     async def _check_peer_completed(self, peer_id: str, distribution_id: str):
         """检查节点是否已完成所有分片下载"""

@@ -107,12 +107,12 @@ class FileProcessor:
         return pieces
 
     async def process_file(self, file_path: str, file_name: str, distribution_id: str,
-                          priority: int = 0) -> FileInfo:
+                           priority: int = 0) -> FileInfo:
         """
-        处理文件，生成分片和元数据
+        处理文件，生成分片和元数据并保存文件
 
         参数:
-            file_path: 文件路径
+            file_path: 临时文件路径
             file_name: 文件名
             distribution_id: 分发任务ID
             priority: 优先级
@@ -127,6 +127,22 @@ class FileProcessor:
         # 计算文件SHA256散列值
         file_hash = await self._calculate_file_hash(file_path_obj)
         file_size = file_path_obj.stat().st_size
+
+        # 确保目标目录存在
+        target_dir = os.path.join("uploads", distribution_id)
+        os.makedirs(target_dir, exist_ok=True)
+
+        # 构建目标文件路径
+        target_file_path = os.path.join(target_dir, file_name)
+
+        # 确保目标文件的父目录存在 (如果file_name包含路径)
+        os.makedirs(os.path.dirname(os.path.join(target_dir, file_name)), exist_ok=True)
+
+        # 复制文件到永久存储位置
+        logging.info(f"复制文件从 {file_path} 到 {target_file_path}")
+        import shutil
+        shutil.copy2(file_path, target_file_path)
+        logging.info(f"文件复制成功，大小: {file_size} 字节")
 
         # 创建文件信息和分片记录 - 使用数据库操作包装器
         async def _create_file_info(session):
@@ -153,5 +169,12 @@ class FileProcessor:
         try:
             return await db_operation(_create_file_info)
         except Exception as e:
+            # 如果数据库操作失败，删除已复制的文件
+            if os.path.exists(target_file_path):
+                try:
+                    os.unlink(target_file_path)
+                    logging.warning(f"由于数据库错误，已删除文件: {target_file_path}")
+                except Exception as del_err:
+                    logging.warning(f"删除文件失败: {del_err}")
             logging.error(f"处理文件出错: {e}", exc_info=True)
             raise

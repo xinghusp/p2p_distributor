@@ -128,7 +128,7 @@ async def upload_file(
         file_path = path if path else file.filename
 
         # 保存上传的文件到临时目录
-        temp_file_path = f"uploads/{distribution_id}/{file.filename}"
+        temp_file_path = f"temp/{uuid.uuid4()}_{file.filename}"
         os.makedirs(os.path.dirname(temp_file_path), exist_ok=True)
 
         with open(temp_file_path, "wb") as buffer:
@@ -174,6 +174,7 @@ async def upload_file(
         if temp_file_path and os.path.exists(temp_file_path):
             try:
                 os.unlink(temp_file_path)
+                logging.debug(f"已清理临时文件: {temp_file_path}")
             except Exception as e:
                 logging.warning(f"清理临时文件失败: {e}")
 
