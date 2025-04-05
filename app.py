@@ -16,7 +16,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from api_routes import router, get_tracker, manager
 from certificate import get_cert_paths
 from config import HOST, PORT, DEBUG
-from database import init_database, get_db, AsyncSessionLocal, engine
+from database import init_database, engine
 from websocket_handler import ConnectionManager
 
 # 配置日志
@@ -151,11 +151,9 @@ async def startup_event():
         # 初始化数据库
         await init_database()
 
-        # 获取数据库会话
-        db = await get_db()
 
         # 初始化P2P追踪器
-        tracker = get_tracker(db)
+        tracker = get_tracker()
 
         # 设置连接管理器的追踪器
         manager.set_tracker(tracker)
@@ -179,17 +177,12 @@ async def shutdown_event():
     logging.info("正在关闭P2P文件分发服务...")
 
     try:
-        # 获取数据库会话
-        db = await get_db()
 
         # 获取P2P追踪器
-        tracker = get_tracker(db)
+        tracker = get_tracker()
 
         # 停止追踪器服务
         await tracker.stop()
-
-        # 关闭数据库连接
-        await db.close()
 
         # 关闭数据库引擎
         await engine.dispose()

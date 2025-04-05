@@ -14,14 +14,8 @@ from database import FileInfo, FilePiece, db_operation
 class FileProcessor:
     """文件处理器"""
 
-    def __init__(self, db_session: AsyncSession):
-        """
-        初始化文件处理器
-
-        参数:
-            db_session: 数据库会话
-        """
-        self.db_session = db_session
+    def __init__(self):
+        """初始化文件处理器 - 不再存储数据库会话"""
         self.chunk_size = 1024 * 1024  # 默认分片大小：1MB
 
     async def _calculate_file_hash(self, file_path: Path) -> str:

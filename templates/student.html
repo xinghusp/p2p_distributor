@@ -300,6 +300,7 @@
         let activePieceRequests = new Set();  // 跟踪正在请求的分片
         let completedFiles = new Set();       // 已完成文件的集合
 
+        let connected = false;
         let heartbeatInterval = null;
         const heartbeatDelay = 10000; // 10秒一次心跳
 
@@ -382,6 +383,7 @@
                 if(heartbeatInterval) {
                      stopHeartbeat();
                 }
+                connected=true;
                 startHeartbeat();
             };
 
@@ -1352,13 +1354,13 @@
             clearInterval(heartbeatInterval);
         }
 
-        this.heartbeatInterval = setInterval(() => {
+        heartbeatInterval = setInterval(() => {
             if (!connected || !peerId || !currentDistributionId) {
                 return; // 未完全初始化，不发送心跳
             }
 
-            this.sendHeartbeat();
-        }, this.heartbeatDelay);
+            sendHeartbeat();
+        }, heartbeatDelay);
 
         console.log('心跳机制已启动');
     }
@@ -1368,6 +1370,7 @@
         if (heartbeatInterval) {
             clearInterval(heartbeatInterval);
             heartbeatInterval = null;
+            connected=false;
             console.log('心跳机制已停止');
         }
     }
