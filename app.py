@@ -4,8 +4,6 @@ import asyncio
 import logging
 import os
 import socket
-import time
-
 import uvicorn
 from typing import Dict, Any
 
@@ -15,12 +13,11 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-import config
-from api_routes import router, get_tracker, manager
+from api_routes import router
 from certificate import get_cert_paths
 from config import HOST, PORT, DEBUG
 from database import init_database, engine
-from websocket_handler import ConnectionManager
+from websocket_handler import ConnectionManager, manager
 
 # 配置日志
 logging.basicConfig(
@@ -35,9 +32,6 @@ app = FastAPI(
     version="1.0.0",
     debug=DEBUG
 )
-
-# 添加依赖覆盖
-app.dependency_overrides[get_tracker] = get_tracker
 
 # 添加CORS中间件
 app.add_middleware(
@@ -54,6 +48,7 @@ app.include_router(router)
 # 确保模板和静态文件目录存在
 os.makedirs("templates", exist_ok=True)
 os.makedirs("static", exist_ok=True)
+os.makedirs("uploads", exist_ok=True)  # 确保上传目录存在
 
 # 设置静态文件目录和模板目录
 templates = Jinja2Templates(directory="templates")
@@ -143,25 +138,30 @@ def get_local_ip_addresses() -> list:
 
     return ip_list
 
-
-# 修改启动和关闭事件处理
+# 应用启动时执行
 @app.on_event("startup")
 async def startup_event():
     """应用启动时执行"""
     logging.info("正在启动P2P文件分发服务...")
 
     try:
-        # 确保数据库初始化完成
+        # 初始化数据库 - 这一步很关键，必须成功
+        logging.info("开始初始化数据库...")
         await init_database()
+        logging.info("数据库初始化完成")
 
-        # 初始化P2P追踪器
-        tracker = get_tracker()
+        # 在api_routes模块中创建P2P追踪器实例
+        from api_routes import tracker_instance
+        from tracker import P2PTracker
 
-        # 设置连接管理器的追踪器
-        manager.set_tracker(tracker)
-
-        # 启动追踪器服务
-        await tracker.start()
+        # 只有当追踪器未被初始化时才创建
+        if tracker_instance is None:
+            logging.info("创建并启动P2P追踪器...")
+            from api_routes import get_tracker
+            tracker = get_tracker()
+            manager.set_tracker(tracker)
+            await tracker.start()
+            logging.info("P2P追踪器启动完成")
 
         # 输出服务信息
         ip_addresses = get_local_ip_addresses()
@@ -169,9 +169,10 @@ async def startup_event():
         logging.info(f"服务器启动于: https://{HOST}:{PORT}")
         logging.info(f"可通过以下IP访问: {ip_info}")
     except Exception as e:
-        logging.error(f"启动失败: {e}", exc_info=True)
-        raise
-
+        logging.critical(f"服务启动失败: {e}", exc_info=True)
+        # 严重错误时退出应用
+        import sys
+        sys.exit(1)
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -179,15 +180,17 @@ async def shutdown_event():
     logging.info("正在关闭P2P文件分发服务...")
 
     try:
-
         # 获取P2P追踪器
-        tracker = get_tracker()
+        from api_routes import tracker_instance
 
         # 停止追踪器服务
-        await tracker.stop()
+        if tracker_instance:
+            await tracker_instance.stop()
+            logging.info("P2P追踪器已停止")
 
         # 关闭数据库引擎
         await engine.dispose()
+        logging.info("数据库连接已关闭")
     except Exception as e:
         logging.error(f"关闭服务失败: {e}", exc_info=True)
 
