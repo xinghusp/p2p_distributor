@@ -293,7 +293,6 @@
 </div>
 
 <script>
-    // 定义TeacherSeed类，供teacher_seed.js使用
     class TeacherSeed {
         constructor() {
             this.clientId = null;
@@ -825,6 +824,20 @@ async sendPiece(pieceId, fileId, peerId) {
 
         // 开始发送初始窗口
         this.sendNextChunks(transfer, pieceData);
+        // 在发送最后一个块后
+        if (chunkIndex === totalChunks - 1) {  // 如果是最后一个块
+            setTimeout(() => {
+                // 发送完成消息
+                dataChannel.send(JSON.stringify({
+                    type: 'piece_response_complete',
+                    transfer_id: transfer.id,
+                    piece_id: pieceId,
+                    file_id: fileId
+                }));
+
+                console.log(`TeacherSeed: 分片 ${pieceId} 传输已完成，已发送完成消息`);
+                }, 50); // 短暂延迟确保最后一个块被处理
+    }
 
     } catch (e) {
         console.error(`TeacherSeed: 发送分片数据失败: ${e}`);
